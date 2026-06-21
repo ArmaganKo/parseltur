@@ -133,13 +133,20 @@
     </div>
 
     <div class="grp">
-      <h3>2 · Görünüm</h3>
+      <h3>2 · Görünüm & Video Ayarları</h3>
       <label class="fld">Arazi abartısı (yükseklik) · <span id="exagVal">1.5×</span></label>
       <input type="range" id="exag" min="0" max="3" step="0.1" value="1.5" />
       <label class="fld">Eğim (pitch) · <span id="pitchVal">65°</span></label>
       <input type="range" id="pitch" min="0" max="85" step="1" value="65" />
       <button class="btn ghost" id="fitBtn" style="margin-top:14px">🎯 Parsele Odaklan</button>
-      <button class="btn ghost" id="orbitBtn">🚁 Drone Turu Başlat</button>
+      
+      <label class="fld">Kamera Hareket Tarzı</label>
+      <select id="tourType">
+        <option value="classic" selected>Klasik Dönüş (Sabit)</option>
+        <option value="helix">Helis (Dönerek Uzaklaş/Yüksel)</option>
+        <option value="dive">Dalış (Dönerek Yakınlaş)</option>
+      </select>
+
       <label class="fld">Video süresi</label>
       <select id="recLen">
         <option value="15">15 saniye</option>
@@ -147,6 +154,8 @@
         <option value="57" selected>57 saniye (Sahibinden)</option>
         <option value="90">90 saniye</option>
       </select>
+      
+      <button class="btn ghost" id="orbitBtn" style="margin-top:8px">🚁 Drone Turu Başlat</button>
       <button class="btn primary" id="recordBtn" style="margin-top:8px">🎬 Video Kaydet (otomatik tur)</button>
     </div>
 
@@ -216,7 +225,6 @@
   </div>
 </div>
 
-<!-- Lead yakalama CTA + form -->
 <button id="cta">📲 Mülkünüzü Sat / Kirala — Ücretsiz Destek İste</button>
 
 <div id="modal">
@@ -236,46 +244,6 @@
   </div>
 </div>
 
-<!-- Nasıl kullanılır penceresi -->
-<div id="help">
-  <div class="modal-box">
-    <button id="helpClose">✕</button>
-    <div class="modal-tag">Parsel Tur</div>
-    <h2>Nasıl yapılır?</h2>
-
-    <div class="modal-tag" style="margin-top:14px">Bölüm 1 · Parselin dosyasını indir (TKGM)</div>
-    <ol class="help-list">
-      <li><b>parselsorgu.tkgm.gov.tr</b> adresine gir. Şifre veya kayıt gerekmez.</li>
-      <li>İlk girişte çıkan <b>"Kullanım Koşulları"</b> penceresinde <b>"Kabul Ediyorum"</b>a tıkla.</li>
-      <li>Sol taraftaki <b>"İdari"</b> sekmesinden sırayla <b>İl, İlçe, Mahalle/Köy</b> seç; sonra <b>Ada</b> ve <b>Parsel</b> numaralarını yaz.</li>
-      <li><b>"Sorgula"</b>ya bas. Parsel haritada <b>kırmızı</b> olarak işaretlenir.</li>
-      <li>Haritada kırmızı parselin <b>üstüne tıkla</b> — parsel bilgi kutusu açılır.</li>
-      <li>Kutudaki <b>indirme menüsüne</b> (üç nokta ⋮ veya "İndir" butonu) tıkla.</li>
-      <li>Format listesinden <b>"GeoJSON"</b> seç ve <b>İndir</b>'e bas. (PDF/KML/DXF de var; bize GeoJSON lazım.)</li>
-      <li>İnen dosyayı bulabileceğin bir yere kaydet (örn. Masaüstü).</li>
-    </ol>
-
-    <div class="modal-tag" style="margin-top:14px">Bölüm 2 · 3D videoyu oluştur</div>
-    <ol class="help-list" start="9">
-      <li>Parsel Tur'u <b>Chrome</b>'da aç.</li>
-      <li>Sol panelde <b>"GeoJSON Dosyası Seç"</b> → indirdiğin dosyayı seç. Parsel 3D belirir, m² otomatik hesaplanır.</li>
-      <li><b>"Videoya Danışman Bilgisi"</b> alanına adını ve telefonunu yaz; köşeyi ve kart arka plan rengini seç.</li>
-      <li>İstersen <b>"📷 Fotoğraf Seç"</b> ile fotoğrafını ekle; açılan pencerede <b>sürükleyip yakınlaştırarak</b> daire içinde ayarla, <b>Uygula</b> de.</li>
-      <li>İstersen eğim, arazi abartısı ve parsel rengini ayarla.</li>
-      <li><b>Video süresini</b> seç (15 / 30 / 57 / 90 sn), sonra <b>"🎬 Video Kaydet"</b>e bas. Drone turu başlar ve seçtiğin süre kadar otomatik kaydeder.</li>
-      <li>Süre bitince video otomatik iner — Chrome'da <b>MP4</b>, üstünde adın ve fotoğrafın gömülü.</li>
-    </ol>
-
-    <div class="modal-tag" style="margin-top:14px">Bölüm 3 · Paylaş</div>
-    <ol class="help-list" start="15">
-      <li>Videoyu <b>Instagram Reels/Story, Sahibinden ilanı</b> veya WhatsApp'ta paylaş.</li>
-    </ol>
-
-    <p class="hint">İpucu: En iyi sonuç bilgisayar + Chrome. Parsel görünmüyorsa dosyanın GeoJSON olduğundan emin ol.</p>
-  </div>
-</div>
-
-<!-- Fotoğraf düzenleme penceresi -->
 <div id="photoEdit">
   <div class="modal-box" style="max-width:330px">
     <button id="photoEditClose">✕</button>
@@ -323,13 +291,6 @@
   #ovPreviewImg.show{display:block}
   #ovPreview .nm{font-weight:700;font-size:15px;line-height:1.2}
   #ovPreview .ph{display:block;font-weight:500;font-size:12px;opacity:.92;margin-top:2px}
-  /* Yardım penceresi */
-  #help{position:absolute;inset:0;z-index:20;background:rgba(31,42,55,.45);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:20px}
-  #help.open{display:flex}
-  .help-list{margin:10px 0 4px 0;padding-left:20px;font-size:13.5px;line-height:1.7;color:var(--txt)}
-  .help-list li{margin-bottom:7px}
-  #photoEdit{position:absolute;inset:0;z-index:25;background:rgba(31,42,55,.5);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:20px}
-  #photoEdit.open{display:flex}
   .crop-wrap{display:flex;justify-content:center;margin:12px 0 4px}
   #cropCanvas{width:260px;height:260px;border-radius:12px;background:#0c1322;touch-action:none;cursor:grab}
   #cropCanvas:active{cursor:grabbing}
@@ -450,14 +411,50 @@ opacity.oninput=()=>{ opVal.textContent=parseFloat(opacity.value).toFixed(2); if
 lineColor.oninput=()=>{ if(map.getLayer('parcel-line')) map.setPaintProperty('parcel-line','line-color',lineColor.value); };
 lineWidth.oninput=()=>{ lwVal.textContent=lineWidth.value+'px'; if(map.getLayer('parcel-line')) map.setPaintProperty('parcel-line','line-width',parseFloat(lineWidth.value)); };
 
-/* ---------- Drone turu (orbit) ---------- */
+/* ---------- Yeni Nesil Sinematik Drone Turu ---------- */
 let orbiting=false,raf;
-const ORBIT_SPEED = 0.12;   // dönüş hızı (derece/kare) — küçük = daha yavaş/sinematik
-function orbit(){ if(!orbiting)return; map.setBearing(map.getBearing()+ORBIT_SPEED); raf=requestAnimationFrame(orbit); }
+const ORBIT_SPEED = 0.12;   // dönüş hızı
+
+let tourFrame = 0;
+let initialZoom = 15;
+let initialPitch = 65;
+
+function orbit(){ 
+  if(!orbiting)return; 
+  
+  tourFrame++;
+  map.setBearing(map.getBearing()+ORBIT_SPEED); 
+
+  const mode = document.getElementById('tourType').value;
+  const totalSeconds = parseInt(document.getElementById('recLen').value, 10) || 57;
+  const totalFrames = totalSeconds * 30; 
+  const progress = Math.min(tourFrame / totalFrames, 1);
+
+  if (mode === 'helix') {
+    // Helis Modu: Dönerek Uzaklaş ve Bakışı Dikleştir
+    const currentZoom = initialZoom - (progress * 1.5);
+    const currentPitch = initialPitch - (progress * 15);
+    map.setZoom(currentZoom);
+    map.setPitch(currentPitch);
+  } else if (mode === 'dive') {
+    // Dalış Modu: Dönerek Yakınlaş
+    const currentZoom = (initialZoom - 1.2) + (progress * 1.2);
+    map.setZoom(currentZoom);
+  }
+
+  raf=requestAnimationFrame(orbit); 
+}
+
 orbitBtn.onclick=()=>{
   orbiting=!orbiting;
   orbitBtn.textContent = orbiting ? '⏹ Drone Turunu Durdur' : '🚁 Drone Turu Başlat';
-  if(orbiting){ map.easeTo({pitch:Math.max(parseFloat(pitch.value),65),duration:600}); orbit(); }
+  if(orbiting){ 
+    tourFrame = 0;
+    initialZoom = map.getZoom();
+    initialPitch = Math.max(parseFloat(pitch.value),65);
+    map.easeTo({pitch:initialPitch,duration:600}); 
+    orbit(); 
+  }
   else cancelAnimationFrame(raf);
 };
 
@@ -500,7 +497,7 @@ function drawOverlay(ctx,w,h){
   if(phone){ ctx.font=`500 ${fs2}px "Segoe UI",system-ui,sans-serif`; ctx.fillText(phone,tx,ty+Math.round(fs2*0.4)); }
 }
 
-/* ---------- Otomatik video kaydı (drone turu + gömülü isim) ---------- */
+/* ---------- Otomatik video kaydı ---------- */
 let mediaRec, recChunks=[];
 recordBtn.onclick=()=>{
   if(!hasParcel){ alert('Önce bir parsel yükle.'); return; }
@@ -515,7 +512,6 @@ recordBtn.onclick=()=>{
   try{ stream = rc.captureStream(30); }
   catch(e){ compositing=false; alert('Tarayıcın otomatik kaydı desteklemiyor. Ekran kaydını kullan.'); return; }
 
-  // Önce MP4 (Sahibinden/Instagram uyumlu), desteklenmezse WebM'e düş
   const candidates = ['video/mp4;codecs=avc1.42E01E','video/mp4','video/webm;codecs=vp9','video/webm'];
   let mime=''; for(const t of candidates){ try{ if(MediaRecorder.isTypeSupported(t)){ mime=t; break; } }catch(e){} }
   const ext = mime.indexOf('mp4')>-1 ? 'mp4' : 'webm';
@@ -538,7 +534,7 @@ recordBtn.onclick=()=>{
   if(!orbiting) orbitBtn.click();   // turu başlat
   recordBtn.disabled = true;
   mediaRec.start();
-  const REC_SECONDS = parseInt(recLen.value,10) || 57;   // 👈 panelden seçilen video süresi
+  const REC_SECONDS = parseInt(recLen.value,10) || 57;   
   let secs = REC_SECONDS;
   recBadge.style.display='block';
   recBadge.textContent='● Kaydediliyor… '+secs+'s';
@@ -551,6 +547,9 @@ recordBtn.onclick=()=>{
       recBadge.style.display='none';
       recordBtn.disabled = false;
       if(orbiting) orbitBtn.click(); // turu durdur
+      
+      // Kayıt bitince odağı orijinal haline sıfırla
+      if (map.getSource('parcel')) fitToParcel(map.getSource('parcel')._data);
     }
   },1000);
 };
@@ -558,7 +557,7 @@ recordBtn.onclick=()=>{
 /* ---------- Danışman etiketi canlı önizleme ---------- */
 let ovImgEl=null, ovImgReady=false;
 
-/* Fotoğraf düzenleyici (daire içinde sürükle + yakınlaştır) */
+/* Fotoğraf düzenleyici */
 let srcImg=null, cropScale=1, cropBase=1, cropOx=0, cropOy=0;
 const CV=260, cropCtx=cropCanvas.getContext('2d');
 
@@ -633,10 +632,8 @@ ovCorner.onchange=updateOverlayPreview; ovToggle.onchange=updateOverlayPreview;
 ovBg.oninput=updateOverlayPreview;
 updateOverlayPreview();
 
-/* ---------- Yardım penceresi ---------- */
+/* ---------- Yardım penceresi açılışı ---------- */
 helpBtn.onclick=()=>window.open('nasil-yapilir.html','_blank');
-helpClose.onclick=()=>help.classList.remove('open');
-help.onclick=e=>{ if(e.target===help) help.classList.remove('open'); };
 
 /* ---------- Pazarlama kartı ---------- */
 function updateCard(){ cardAda.textContent=adaText.value||'—'; }
@@ -644,8 +641,6 @@ adaText.oninput=updateCard;
 cardToggle.onchange=()=>card.classList.toggle('hide',!cardToggle.checked);
 
 /* ---------- Lead yakalama (WhatsApp) ---------- */
-/* 👇 BURAYA KENDİ NUMARANI YAZ — ülke kodu + numara, başında + veya 0 olmadan.
-   Örnek: 0532 123 45 67  →  "905321234567"                                      */
 const WHATSAPP = "905079173358";
 
 cta.onclick   = ()=> modal.classList.add('open');
