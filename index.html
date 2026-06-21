@@ -68,7 +68,10 @@
   .row .btn{flex:1}
 
   label.fld{display:block;font-size:12px;color:var(--muted);margin:12px 0 6px}
-  input[type=range]{width:100%;accent-color:var(--gold)}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:6px;background:#e2e8f0;outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:var(--gold);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:pointer}
+  input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--gold);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:pointer}
+  input[type=range]::-moz-range-track{height:6px;border-radius:6px;background:#e2e8f0}
   input[type=color]{width:42px;height:30px;border:1px solid var(--line);border-radius:6px;background:none;cursor:pointer;padding:2px}
   .inline{display:flex;align-items:center;justify-content:space-between;gap:10px}
   .inline span{font-size:12px;color:var(--muted)}
@@ -296,6 +299,7 @@
   .copyr{font-size:10.5px;color:var(--muted);text-align:center;line-height:1.5;margin-top:6px;padding-top:14px;border-top:1px solid var(--line)}
   #recBadge{display:none;position:absolute;left:50%;top:56px;transform:translateX(-50%);z-index:8;background:#e11d48;color:#fff;font-size:12.5px;font-weight:700;padding:7px 16px;border-radius:30px;box-shadow:0 6px 20px rgba(225,29,72,.45)}
   .scroll input[type=text],.scroll select{width:100%;background:#f7f9fc;border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:13px;padding:9px;margin-top:2px}
+  .scroll select{-webkit-appearance:none;-moz-appearance:none;appearance:none;padding-right:30px;background-image:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7785' stroke-width='3'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 11px center;cursor:pointer}
   /* Videoya gömülecek danışman etiketi (canlı önizleme) */
   #ovPreview{position:absolute;bottom:22px;z-index:4;display:flex;align-items:center;gap:11px;background:linear-gradient(135deg,rgba(13,148,136,.94),rgba(15,118,110,.94));color:#fff;padding:10px 16px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.3);max-width:62%}
   #ovPreview.bl{left:18px}#ovPreview.br{right:18px}
