@@ -447,29 +447,25 @@ lineWidth.oninput=()=>{ lwVal.textContent=lineWidth.value+'px'; if(map.getLayer(
 let orbiting=false,raf;
 const ORBIT_SPEED = 0.12;
 
-let tourFrame = 0;
+let tourStart = 0;
 let initialZoom = 15;
 let initialPitch = 65;
 
 function orbit(){ 
   if(!orbiting)return; 
-  
-  tourFrame++;
+
   map.setBearing(map.getBearing()+ORBIT_SPEED); 
 
   const mode = document.getElementById('tourType').value;
   const totalSeconds = parseInt(document.getElementById('recLen').value, 10) || 57;
-  const totalFrames = totalSeconds * 30; 
-  const progress = Math.min(tourFrame / totalFrames, 1);
+  const elapsed = (Date.now() - tourStart) / 1000;        // gerçek geçen süre (sn)
+  const progress = Math.min(elapsed / totalSeconds, 1);   // 0 → 1, tam süreye yayılır
 
   if (mode === 'helix') {
-    const currentZoom = initialZoom - (progress * 1.5);
-    const currentPitch = initialPitch - (progress * 15);
-    map.setZoom(currentZoom);
-    map.setPitch(currentPitch);
+    map.setZoom(initialZoom - (progress * 1.5));
+    map.setPitch(initialPitch - (progress * 15));
   } else if (mode === 'dive') {
-    const currentZoom = (initialZoom - 1.2) + (progress * 1.2);
-    map.setZoom(currentZoom);
+    map.setZoom((initialZoom - 1.2) + (progress * 1.2));
   }
 
   raf=requestAnimationFrame(orbit); 
@@ -479,7 +475,7 @@ orbitBtn.onclick=()=>{
   orbiting=!orbiting;
   orbitBtn.textContent = orbiting ? '⏹ Drone Turunu Durdur' : '🚁 Drone Turu Başlat';
   if(orbiting){ 
-    tourFrame = 0;
+    tourStart = Date.now();
     initialZoom = map.getZoom();
     initialPitch = Math.max(parseFloat(pitch.value),65);
     map.easeTo({pitch:initialPitch,duration:600}); 
