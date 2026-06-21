@@ -17,9 +17,15 @@
 <meta property="og:image:height" content="630" />
 <meta name="twitter:card" content="summary_large_image" />
 <title>Parsel Tur · Armağan Kocabaş</title>
+
+<!-- MapLibre & Turf -->
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://unpkg.com/@turf/turf@7.1.0/turf.min.js"></script>
+
+<!-- Hızlı ve Akıcı Animasyon İçin Hafif GSAP -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
 <style>
   :root{
     --bg:#eaeef3; --panel:#ffffff; --line:#e3e8ef;
@@ -27,16 +33,20 @@
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%;font-family:"Segoe UI",system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--txt);overflow:hidden;color-scheme:only light}
-  #map{position:absolute;inset:0}
+  
+  /* İlk açılışta harita hafif flulu başlayacak */
+  #map{position:absolute;inset:0; filter: blur(10px); transform: scale(1.05); transition: filter 1.2s ease, transform 1.2s ease;}
+  #map.ready{filter: blur(0); transform: scale(1);}
 
-  /* Panel */
+  /* Panel Animasyon Başlangıç Değerleri */
   #panel{
     position:absolute;top:0;left:0;height:100%;width:330px;z-index:5;
     background:linear-gradient(180deg,#ffffff 0%,#f5f8fb 100%);
     border-right:1px solid var(--line);display:flex;flex-direction:column;
-    transition:transform .25s ease;box-shadow:8px 0 30px rgba(0,0,0,.4)
+    transition:transform .25s ease;box-shadow:8px 0 30px rgba(0,0,0,.4);
+    opacity: 0; transform: translateX(-40px);
   }
-  #panel.closed{transform:translateX(-330px)}
+  #panel.closed{transform:translateX(-330px) !important}
   .brand{padding:18px 20px 14px;border-bottom:1px solid var(--line)}
   .brand .name{font-size:17px;font-weight:700;letter-spacing:.3px}
   .brand .name b{color:var(--gold)}
@@ -69,7 +79,7 @@
   .switch input{accent-color:var(--gold);width:16px;height:16px}
 
   /* Toggle button */
-  #toggle{position:absolute;top:14px;left:344px;z-index:6;background:var(--panel);border:1px solid var(--line);color:var(--gold);width:40px;height:40px;border-radius:9px;cursor:pointer;font-size:18px;transition:left .25s ease}
+  #toggle{position:absolute;top:14px;left:344px;z-index:6;background:var(--panel);border:1px solid var(--line);color:var(--gold);width:40px;height:40px;border-radius:9px;cursor:pointer;font-size:18px;transition:left .25s ease; opacity: 0;}
   #panel.closed ~ #toggle{left:14px}
 
   /* Marketing overlay on map */
@@ -77,7 +87,8 @@
     position:absolute;right:16px;bottom:32px;z-index:4;width:248px;
     background:rgba(255,255,255,.92);backdrop-filter:blur(8px);
     border:1px solid rgba(13,148,136,.35);border-radius:14px;padding:16px 18px;
-    box-shadow:0 10px 40px rgba(0,0,0,.5)
+    box-shadow:0 10px 40px rgba(0,0,0,.5);
+    opacity: 0; transform: translateY(20px);
   }
   #card.hide{display:none}
   #card .tag{font-size:10px;letter-spacing:2px;color:var(--gold);text-transform:uppercase}
@@ -88,11 +99,11 @@
   #card .role{font-size:11px;color:var(--muted);margin-top:2px}
   #card .web{font-size:11px;color:var(--gold-soft);margin-top:6px}
 
-  .badge{position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:4;background:rgba(255,255,255,.88);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:30px;padding:7px 16px;font-size:12px;color:var(--muted)}
+  .badge{position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:4;background:rgba(255,255,255,.88);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:30px;padding:7px 16px;font-size:12px;color:var(--muted); opacity: 0; transform: translate(-50%, -10px);}
   .badge b{color:var(--gold-soft)}
 
   @media(max-width:680px){
-    #panel{width:86vw}#panel.closed{transform:translateX(-90vw)}
+    #panel{width:86vw}#panel.closed{transform:translateX(-90vw) !important}
     #toggle{left:calc(86vw + 14px)}#panel.closed ~ #toggle{left:14px}
     #card{display:none}.badge{display:none}
   }
@@ -104,7 +115,7 @@
 
 <div class="badge">🚁 <b>Parsel Tur</b> · uydu + 3D arazi modeli</div>
 <div id="recBadge">● Kaydediliyor…</div>
-<div id="ovPreview" class="bl"><img id="ovPreviewImg" alt="" /><div class="txt"><span class="nm" id="ovPreviewName">Armağan Kocabaş</span><span class="ph" id="ovPreviewPhone"></span></div></div>
+<div id="ovPreview" class="bl" style="opacity:0;"><img id="ovPreviewImg" alt="" /><div class="txt"><span class="nm" id="ovPreviewName">Armağan Kocabaş</span><span class="ph" id="ovPreviewPhone"></span></div></div>
 
 <aside id="panel">
   <div class="brand">
@@ -225,7 +236,8 @@
   </div>
 </div>
 
-<button id="cta">📲 Mülkünüzü Sat / Kirala — Ücretsiz Destek İste</button>
+<!-- Lead yakalama CTA + form -->
+<button id="cta" style="opacity: 0; transform: translate(-50%, 20px);">📲 Mülkünüzü Sat / Kirala — Ücretsiz Destek İste</button>
 
 <div id="modal">
   <div class="modal-box">
@@ -244,6 +256,7 @@
   </div>
 </div>
 
+<!-- Fotoğraf düzenleme penceresi -->
 <div id="photoEdit">
   <div class="modal-box" style="max-width:330px">
     <button id="photoEditClose">✕</button>
@@ -291,6 +304,11 @@
   #ovPreviewImg.show{display:block}
   #ovPreview .nm{font-weight:700;font-size:15px;line-height:1.2}
   #ovPreview .ph{display:block;font-weight:500;font-size:12px;opacity:.92;margin-top:2px}
+  
+  /* Fotoğraf Düzenleme Alanı Overlay Sabitlemeleri (DÜZELTİLEN YER) */
+  #photoEdit{position:absolute;inset:0;z-index:25;background:rgba(31,42,55,.5);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:20px}
+  #photoEdit.open{display:flex}
+  
   .crop-wrap{display:flex;justify-content:center;margin:12px 0 4px}
   #cropCanvas{width:260px;height:260px;border-radius:12px;background:#0c1322;touch-action:none;cursor:grab}
   #cropCanvas:active{cursor:grabbing}
@@ -340,6 +358,20 @@ map.on('load',()=>{
         'fog-color':'#dfeaf5','fog-ground-blend':0.4
       });
     }
+    
+    // Haritayı flu halden netleştir
+    document.getElementById('map').classList.add('ready');
+    
+    // KUSURSUZ VE EŞ ZAMANLI AÇILIŞ ANIMASYONU
+    gsap.timeline()
+      .to("#panel", { opacity: 1, x: 0, duration: 0.5, ease: "power2.out" })
+      .to("#toggle, .badge, #card, #cta, #ovPreview", { 
+        opacity: 1, 
+        y: 0, 
+        duration: 0.4, 
+        ease: "power2.out" 
+      }, "-=0.3");
+
   }catch(e){ console.warn('sky atlandı',e); }
 });
 window.addEventListener('error',e=>console.warn('yakalandı:',e.message));
@@ -386,7 +418,7 @@ function fitToParcel(fc){
   }catch(e){}
 }
 
-/* ---------- Örnek parsel (İstanbul Çekmeköy civarı) ---------- */
+/* ---------- Örnek parsel ---------- */
 const demo={type:"Feature",properties:{ada:"Örnek Parsel"},geometry:{type:"Polygon",coordinates:[[
   [29.1942,41.0418],[29.1958,41.0420],[29.1961,41.0408],[29.1945,41.0405],[29.1942,41.0418]
 ]]}};
@@ -413,7 +445,7 @@ lineWidth.oninput=()=>{ lwVal.textContent=lineWidth.value+'px'; if(map.getLayer(
 
 /* ---------- Yeni Nesil Sinematik Drone Turu ---------- */
 let orbiting=false,raf;
-const ORBIT_SPEED = 0.12;   // dönüş hızı
+const ORBIT_SPEED = 0.12;
 
 let tourFrame = 0;
 let initialZoom = 15;
@@ -431,13 +463,11 @@ function orbit(){
   const progress = Math.min(tourFrame / totalFrames, 1);
 
   if (mode === 'helix') {
-    // Helis Modu: Dönerek Uzaklaş ve Bakışı Dikleştir
     const currentZoom = initialZoom - (progress * 1.5);
     const currentPitch = initialPitch - (progress * 15);
     map.setZoom(currentZoom);
     map.setPitch(currentPitch);
   } else if (mode === 'dive') {
-    // Dalış Modu: Dönerek Yakınlaş
     const currentZoom = (initialZoom - 1.2) + (progress * 1.2);
     map.setZoom(currentZoom);
   }
@@ -482,14 +512,12 @@ function drawOverlay(ctx,w,h){
   const y = h-boxH-margin;
   roundRect(ctx,x,y,boxW,boxH,Math.round(h*0.013)); ctx.fillStyle=ovBg.value; ctx.fill();
   const tc=textOn(ovBg.value);
-  // foto (yuvarlak)
   if(hasImg){
     const ax=x+pad, ay=y+(boxH-avSize)/2, r=avSize/2;
     ctx.save(); ctx.beginPath(); ctx.arc(ax+r,ay+r,r,0,Math.PI*2); ctx.clip();
     ctx.drawImage(ovImgEl,ax,ay,avSize,avSize); ctx.restore();
     ctx.beginPath(); ctx.arc(ax+r,ay+r,r,0,Math.PI*2); ctx.lineWidth=Math.max(2,h*0.0035); ctx.strokeStyle=tc; ctx.globalAlpha=.85; ctx.stroke(); ctx.globalAlpha=1;
   }
-  // yazı
   const tx=x+pad+(hasImg?avSize+gap:0);
   let ty=y+(boxH-textH)/2;
   ctx.fillStyle=tc; ctx.textBaseline='top';
@@ -531,7 +559,7 @@ recordBtn.onclick=()=>{
     setTimeout(()=>URL.revokeObjectURL(url),1000);
   };
 
-  if(!orbiting) orbitBtn.click();   // turu başlat
+  if(!orbiting) orbitBtn.click();
   recordBtn.disabled = true;
   mediaRec.start();
   const REC_SECONDS = parseInt(recLen.value,10) || 57;   
@@ -546,9 +574,7 @@ recordBtn.onclick=()=>{
       try{ mediaRec.stop(); }catch(e){}
       recBadge.style.display='none';
       recordBtn.disabled = false;
-      if(orbiting) orbitBtn.click(); // turu durdur
-      
-      // Kayıt bitince odağı orijinal haline sıfırla
+      if(orbiting) orbitBtn.click();
       if (map.getSource('parcel')) fitToParcel(map.getSource('parcel')._data);
     }
   },1000);
