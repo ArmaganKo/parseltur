@@ -622,7 +622,7 @@ ovBg.oninput=updateOverlayPreview;
 updateOverlayPreview();
 
 /* ---------- Yardım penceresi ---------- */
-helpBtn.onclick=()=>help.classList.add('open');
+helpBtn.onclick=()=>window.open('nasil-yapilir.html','_blank');
 helpClose.onclick=()=>help.classList.remove('open');
 help.onclick=e=>{ if(e.target===help) help.classList.remove('open'); };
 
