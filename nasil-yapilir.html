@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="tr" style="color-scheme:only light;background:#f3f6f9">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="only light" />
+<title>Nasıl Yapılır? · Parsel Tur</title>
+<meta name="description" content="TKGM Parsel Sorgu'dan GeoJSON indirip arsanı dakikalar içinde 3 boyutlu drone videosuna çevirme rehberi. Adım adım, ekran görüntülü anlatım." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f3f6f9; --card:#ffffff; --line:#e3e8ef;
+    --teal:#0d9488; --teal-d:#0f766e; --teal-soft:#e6f4f2;
+    --ink:#152230; --body:#475467; --muted:#8a97a6;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth;color-scheme:only light;background:#f3f6f9}
+  body{font-family:"Plus Jakarta Sans",system-ui,sans-serif;background:var(--bg);color:var(--body);line-height:1.65;-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:840px;margin:0 auto;padding:0 22px}
+
+  /* Top bar */
+  header{position:sticky;top:0;z-index:20;background:rgba(243,246,249,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .bar{display:flex;align-items:center;justify-content:space-between;height:62px}
+  .logo{display:flex;align-items:center;gap:9px;font-weight:800;color:var(--ink);font-size:18px;letter-spacing:-.3px}
+  .logo .dot{width:11px;height:11px;border-radius:50%;background:var(--teal);box-shadow:0 0 0 4px var(--teal-soft)}
+  .logo b{color:var(--teal)}
+  .top-cta{background:var(--teal);color:#fff;font-weight:600;font-size:13.5px;padding:9px 16px;border-radius:9px;transition:.15s}
+  .top-cta:hover{background:var(--teal-d)}
+
+  /* Hero */
+  .hero{padding:64px 0 40px;text-align:center}
+  .eyebrow{display:inline-block;font-size:12px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--teal);background:var(--teal-soft);padding:6px 14px;border-radius:30px}
+  .hero h1{font-size:clamp(30px,6vw,48px);line-height:1.1;color:var(--ink);font-weight:800;letter-spacing:-1px;margin:20px auto 16px;max-width:16ch}
+  .hero p{font-size:17px;max-width:54ch;margin:0 auto 28px}
+  .hero .btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .btn{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:15px;padding:13px 24px;border-radius:11px;transition:.15s;cursor:pointer;border:none}
+  .btn-primary{background:var(--teal);color:#fff;box-shadow:0 8px 24px rgba(13,148,136,.28)}
+  .btn-primary:hover{background:var(--teal-d);transform:translateY(-1px)}
+  .btn-ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  .btn-ghost:hover{border-color:var(--teal);color:var(--teal)}
+
+  /* Section */
+  .section{padding:30px 0}
+  .sec-head{display:flex;align-items:center;gap:14px;margin:34px 0 22px}
+  .sec-head .badge{flex-shrink:0;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--teal-d);background:var(--teal-soft);padding:7px 13px;border-radius:8px}
+  .sec-head h2{font-size:22px;color:var(--ink);font-weight:700;letter-spacing:-.4px}
+  .sec-head .rule{flex:1;height:1px;background:var(--line)}
+
+  /* Step */
+  .step{display:flex;gap:18px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin-bottom:14px}
+  .step .no{flex-shrink:0;width:38px;height:38px;border-radius:50%;background:var(--teal);color:#fff;font-weight:800;font-size:16px;display:flex;align-items:center;justify-content:center}
+  .step .body h3{font-size:16.5px;color:var(--ink);font-weight:700;margin-bottom:4px}
+  .step .body p{font-size:14.5px;margin:0}
+  .step .body b{color:var(--ink)}
+
+  /* Screenshot slot */
+  .shot{display:block;width:100%;border-radius:14px;margin:10px 0 4px;border:1px solid var(--line)}
+  .shot.ph{aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;background:repeating-linear-gradient(45deg,#fafcfd,#fafcfd 12px,#f2f6f8 12px,#f2f6f8 24px);color:var(--muted);font-size:13px;font-weight:600;border:1px dashed #cbd5e1}
+
+  /* Callout */
+  .callout{background:var(--teal-soft);border:1px solid rgba(13,148,136,.25);border-radius:14px;padding:18px 22px;margin:26px 0}
+  .callout h4{color:var(--teal-d);font-size:14px;font-weight:700;margin-bottom:6px;letter-spacing:.3px}
+  .callout p{font-size:14px;margin:0;color:var(--ink)}
+
+  /* Final CTA */
+  .final{background:linear-gradient(135deg,var(--teal),var(--teal-d));border-radius:22px;padding:46px 30px;text-align:center;color:#fff;margin:40px 0}
+  .final h2{font-size:27px;font-weight:800;letter-spacing:-.5px;margin-bottom:10px}
+  .final p{color:rgba(255,255,255,.9);max-width:46ch;margin:0 auto 24px;font-size:16px}
+  .final .btn-white{background:#fff;color:var(--teal-d)}
+  .final .btn-white:hover{transform:translateY(-1px)}
+
+  /* Footer */
+  footer{border-top:1px solid var(--line);padding:30px 0 50px;margin-top:10px}
+  .who{display:flex;align-items:center;gap:14px}
+  .who .av{width:54px;height:54px;border-radius:50%;object-fit:cover;border:2px solid var(--teal);flex-shrink:0;background:var(--teal-soft);display:flex;align-items:center;justify-content:center;color:var(--teal);font-weight:800}
+  .who .nm{font-weight:700;color:var(--ink);font-size:16px}
+  .who .rl{font-size:13px;color:var(--muted)}
+  .who .web{font-size:13px;color:var(--teal-d);font-weight:600;margin-top:3px}
+  .fnote{font-size:12px;color:var(--muted);margin-top:20px;text-align:center}
+
+  @media(max-width:560px){
+    .step{padding:16px}.hero{padding:44px 0 30px}
+    .top-cta{padding:8px 13px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap bar">
+    <a class="logo" href="index.html"><span class="dot"></span>Parsel <b>Tur</b></a>
+    <a class="top-cta" href="index.html">Aracı Aç →</a>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <span class="eyebrow">Kullanım Rehberi</span>
+    <h1>Arsanı dakikalar içinde 3D drone videosuna çevir</h1>
+    <p>Drone kiralamadan, araziye gitmeden. TKGM'den parsel dosyanı indir, yükle, adını yaz — üstünde adın yazılı sinematik bir tanıtım videosu otomatik insin.</p>
+    <div class="btns">
+      <a class="btn btn-primary" href="index.html">🚁 Aracı Aç</a>
+      <a class="btn btn-ghost" href="https://parselsorgu.tkgm.gov.tr/" target="_blank" rel="noopener">TKGM Parsel Sorgu'ya Git</a>
+    </div>
+  </div>
+</section>
+
+<main class="wrap">
+
+  <!-- BÖLÜM 1 -->
+  <div class="section">
+    <div class="sec-head">
+      <span class="badge">Bölüm 1</span>
+      <h2>Parselin dosyasını indir</h2>
+      <span class="rule"></span>
+    </div>
+
+    <div class="step"><div class="no">1</div><div class="body">
+      <h3>Parsel Sorgu'ya gir</h3>
+      <p>Tarayıcından <b>parselsorgu.tkgm.gov.tr</b> adresini aç. Şifre veya kayıt gerekmez, ücretsizdir.</p>
+    </div></div>
+
+    <div class="step"><div class="no">2</div><div class="body">
+      <h3>Koşulları kabul et</h3>
+      <p>İlk girişte çıkan <b>"Kullanım Koşulları"</b> penceresinde <b>"Kabul Ediyorum"</b>a tıkla.</p>
+    </div></div>
+
+    <div class="step"><div class="no">3</div><div class="body">
+      <h3>Parsel bilgilerini gir</h3>
+      <p>Soldaki <b>"İdari"</b> sekmesinden sırayla <b>İl, İlçe, Mahalle/Köy</b> seç; ardından <b>Ada</b> ve <b>Parsel</b> numaralarını yaz.</p>
+      <img class="shot" src="adim-1.jpg" alt="Parsel sorgulama ekranı"
+        onerror="this.outerHTML='&lt;div class=\'shot ph\'&gt;Ekran görüntüsü · adim-1.jpg&lt;/div&gt;'">
+    </div></div>
+
+    <div class="step"><div class="no">4</div><div class="body">
+      <h3>Sorgula</h3>
+      <p><b>"Sorgula"</b> butonuna bas. Parselin harita üzerinde <b>kırmızı</b> olarak işaretlenir.</p>
+    </div></div>
+
+    <div class="step"><div class="no">5</div><div class="body">
+      <h3>Parsele tıkla</h3>
+      <p>Haritadaki <b>kırmızı parselin üstüne tıkla</b>. Parsele ait bilgi kutusu açılır.</p>
+      <img class="shot" src="adim-2.jpg" alt="Parsel detay kutusu"
+        onerror="this.outerHTML='&lt;div class=\'shot ph\'&gt;Ekran görüntüsü · adim-2.jpg&lt;/div&gt;'">
+    </div></div>
+
+    <div class="step"><div class="no">6</div><div class="body">
+      <h3>İndirme menüsünü aç</h3>
+      <p>Açılan kutudaki <b>indirme menüsüne</b> tıkla (üç nokta <b>⋮</b> ya da <b>"İndir"</b> butonu).</p>
+    </div></div>
+
+    <div class="step"><div class="no">7</div><div class="body">
+      <h3>GeoJSON'u indir</h3>
+      <p>Format listesinden <b>"GeoJSON"</b> seç ve indir. (Menüde PDF, KML, SHAPE, DXF de bulunur — bize <b>GeoJSON</b> lazım.) İnen dosyayı Masaüstü gibi bulabileceğin bir yere kaydet.</p>
+      <img class="shot" src="adim-3.jpg" alt="GeoJSON indirme"
+        onerror="this.outerHTML='&lt;div class=\'shot ph\'&gt;Ekran görüntüsü · adim-3.jpg&lt;/div&gt;'">
+    </div></div>
+  </div>
+
+  <!-- BÖLÜM 2 -->
+  <div class="section">
+    <div class="sec-head">
+      <span class="badge">Bölüm 2</span>
+      <h2>3D videoyu oluştur</h2>
+      <span class="rule"></span>
+    </div>
+
+    <div class="step"><div class="no">8</div><div class="body">
+      <h3>Aracı Chrome'da aç</h3>
+      <p>Parsel Tur'u bilgisayarında <b>Chrome</b> ile aç. (En akıcı 3D ve video sonucu bilgisayarda alınır.)</p>
+    </div></div>
+
+    <div class="step"><div class="no">9</div><div class="body">
+      <h3>Dosyayı yükle</h3>
+      <p>Sol panelde <b>"GeoJSON Dosyası Seç"</b>e tıkla, indirdiğin dosyayı seç. Parsel 3D haritada belirir, <b>m² otomatik hesaplanır</b>.</p>
+      <img class="shot" src="adim-4.jpg" alt="Parsel Tur arayüzü"
+        onerror="this.outerHTML='&lt;div class=\'shot ph\'&gt;Ekran görüntüsü · adim-4.jpg&lt;/div&gt;'">
+    </div></div>
+
+    <div class="step"><div class="no">10</div><div class="body">
+      <h3>Adını ve fotoğrafını ekle</h3>
+      <p><b>"Videoya Danışman Bilgisi"</b> alanına adını ve telefonunu yaz, köşeyi ve kart arka plan rengini seç. İstersen <b>"📷 Fotoğraf Seç"</b> ile fotoğrafını ekle; açılan pencerede <b>sürükleyip yakınlaştırarak</b> daire içinde ayarla ve <b>Uygula</b> de. İsim ve fotoğraf videoya kalıcı gömülür.</p>
+    </div></div>
+
+    <div class="step"><div class="no">11</div><div class="body">
+      <h3>Görünümü ayarla</h3>
+      <p>İstersen eğim, arazi yüksekliği ve parsel rengini kendine göre düzenle.</p>
+    </div></div>
+
+    <div class="step"><div class="no">12</div><div class="body">
+      <h3>Videoyu kaydet</h3>
+      <p>Önce <b>video süresini</b> seç (15 / 30 / 57 / 90 sn). Sonra <b>"🎬 Video Kaydet"</b>e bas — drone turu başlar ve seçtiğin süre kadar otomatik kaydeder. Bitince video otomatik iner: Chrome'da <b>MP4</b>, üstünde adın ve fotoğrafın gömülü.</p>
+      <img class="shot" src="adim-5.jpg" alt="Video kaydı"
+        onerror="this.outerHTML='&lt;div class=\'shot ph\'&gt;Ekran görüntüsü · adim-5.jpg&lt;/div&gt;'">
+    </div></div>
+  </div>
+
+  <!-- BÖLÜM 3 -->
+  <div class="section">
+    <div class="sec-head">
+      <span class="badge">Bölüm 3</span>
+      <h2>Paylaş</h2>
+      <span class="rule"></span>
+    </div>
+    <div class="step"><div class="no">13</div><div class="body">
+      <h3>Yayınla</h3>
+      <p>Videoyu <b>Instagram Reels/Story</b>, <b>Sahibinden ilanı</b> veya WhatsApp durumunda paylaş. Hazır MP4 olduğu için düzenleme gerekmez.</p>
+    </div></div>
+
+    <div class="callout">
+      <h4>İPUCU</h4>
+      <p>En iyi sonuç bilgisayar + Chrome'da alınır. Parsel görünmüyorsa, indirdiğin dosyanın <b>GeoJSON</b> (PDF/KML değil) olduğundan emin ol.</p>
+    </div>
+  </div>
+
+  <!-- FINAL CTA -->
+  <div class="final">
+    <h2>Hadi ilk videonu oluştur</h2>
+    <p>Bir parsel, üç dakika. Arsanı satışa hazır bir drone videosuyla öne çıkar.</p>
+    <a class="btn btn-white" href="index.html">🚁 Aracı Aç</a>
+  </div>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="who">
+      <img class="av" src="foto.jpg" alt="Armağan Kocabaş"
+        onerror="this.outerHTML='&lt;div class=\'av\'&gt;AK&lt;/div&gt;'">
+      <div>
+        <div class="nm">Armağan Kocabaş</div>
+        <div class="rl">Lüks Gayrimenkul Danışmanı · RE/MAX Eksen</div>
+        <div class="web">armagankocabas.com</div>
+      </div>
+    </div>
+    <p class="fnote">Parsel Tur · parseltur.com — Tüm hakları saklıdır © 2026 Armağan Kocabaş · RE/MAX Eksen · Lüks Gayrimenkul Uzmanı<br>Parsel verileri TKGM Parsel Sorgu'dan alınır.</p>
+  </div>
+</footer>
+
+</body>
+</html>

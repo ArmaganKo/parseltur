@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="color-scheme" content="only light" />
+<title>Parsel Tur · Armağan Kocabaş</title>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/@turf/turf@7.1.0/turf.min.js"></script>
+<style>
+  :root{
+    --bg:#eaeef3; --panel:#ffffff; --line:#e3e8ef;
+    --gold:#0d9488; --gold-soft:#0f766e; --txt:#1f2a37; --muted:#6b7785;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;font-family:"Segoe UI",system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--txt);overflow:hidden;color-scheme:only light}
+  #map{position:absolute;inset:0}
+
+  /* Panel */
+  #panel{
+    position:absolute;top:0;left:0;height:100%;width:330px;z-index:5;
+    background:linear-gradient(180deg,#ffffff 0%,#f5f8fb 100%);
+    border-right:1px solid var(--line);display:flex;flex-direction:column;
+    transition:transform .25s ease;box-shadow:8px 0 30px rgba(0,0,0,.4)
+  }
+  #panel.closed{transform:translateX(-330px)}
+  .brand{padding:18px 20px 14px;border-bottom:1px solid var(--line)}
+  .brand .name{font-size:17px;font-weight:700;letter-spacing:.3px}
+  .brand .name b{color:var(--gold)}
+  .brand .sub{font-size:11px;color:var(--muted);margin-top:3px;letter-spacing:1.5px;text-transform:uppercase}
+  .scroll{overflow-y:auto;padding:16px 20px 28px;flex:1}
+  .scroll::-webkit-scrollbar{width:7px}
+  .scroll::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+
+  .grp{margin-bottom:20px}
+  .grp h3{font-size:11px;color:var(--gold-soft);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;font-weight:600}
+
+  .btn{display:block;width:100%;padding:11px 14px;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;text-align:center}
+  .btn.primary{background:linear-gradient(135deg,var(--gold),#0f766e);color:#ffffff}
+  .btn.primary:hover{filter:brightness(1.08)}
+  .btn.ghost{background:#f1f5f9;color:var(--txt);border:1px solid var(--line)}
+  .btn.ghost:hover{background:#e6edf4}
+  .btn+.btn{margin-top:8px}
+  .row{display:flex;gap:8px}
+  .row .btn{flex:1}
+
+  label.fld{display:block;font-size:12px;color:var(--muted);margin:12px 0 6px}
+  input[type=range]{width:100%;accent-color:var(--gold)}
+  input[type=color]{width:42px;height:30px;border:1px solid var(--line);border-radius:6px;background:none;cursor:pointer;padding:2px}
+  .inline{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .inline span{font-size:12px;color:var(--muted)}
+  textarea{width:100%;height:90px;background:#f7f9fc;border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:12px;padding:9px;resize:vertical;font-family:monospace}
+  .hint{font-size:11px;color:var(--muted);line-height:1.6;margin-top:8px}
+  .hint a{color:var(--gold-soft)}
+  .switch{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--txt);cursor:pointer;margin:8px 0}
+  .switch input{accent-color:var(--gold);width:16px;height:16px}
+
+  /* Toggle button */
+  #toggle{position:absolute;top:14px;left:344px;z-index:6;background:var(--panel);border:1px solid var(--line);color:var(--gold);width:40px;height:40px;border-radius:9px;cursor:pointer;font-size:18px;transition:left .25s ease}
+  #panel.closed ~ #toggle{left:14px}
+
+  /* Marketing overlay on map */
+  #card{
+    position:absolute;right:16px;bottom:32px;z-index:4;width:248px;
+    background:rgba(255,255,255,.92);backdrop-filter:blur(8px);
+    border:1px solid rgba(13,148,136,.35);border-radius:14px;padding:16px 18px;
+    box-shadow:0 10px 40px rgba(0,0,0,.5)
+  }
+  #card.hide{display:none}
+  #card .tag{font-size:10px;letter-spacing:2px;color:var(--gold);text-transform:uppercase}
+  #card .ada{font-size:20px;font-weight:700;margin:5px 0 2px}
+  #card .area{font-size:13px;color:var(--gold-soft);font-weight:600}
+  #card hr{border:none;border-top:1px solid var(--line);margin:11px 0}
+  #card .who{font-size:13.5px;font-weight:700}
+  #card .role{font-size:11px;color:var(--muted);margin-top:2px}
+  #card .web{font-size:11px;color:var(--gold-soft);margin-top:6px}
+
+  .badge{position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:4;background:rgba(255,255,255,.88);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:30px;padding:7px 16px;font-size:12px;color:var(--muted)}
+  .badge b{color:var(--gold-soft)}
+
+  @media(max-width:680px){
+    #panel{width:86vw}#panel.closed{transform:translateX(-90vw)}
+    #toggle{left:calc(86vw + 14px)}#panel.closed ~ #toggle{left:14px}
+    #card{display:none}.badge{display:none}
+  }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="badge">🚁 <b>Parsel Tur</b> · uydu + 3D arazi modeli</div>
+<div id="recBadge">● Kaydediliyor…</div>
+<div id="ovPreview" class="bl"><img id="ovPreviewImg" alt="" /><div class="txt"><span class="nm" id="ovPreviewName">Armağan Kocabaş</span><span class="ph" id="ovPreviewPhone"></span></div></div>
+
+<aside id="panel">
+  <div class="brand">
+    <div class="brand-row">
+      <img class="avatar brand-av" src="foto.jpg" alt="Armağan Kocabaş"
+           onerror="this.outerHTML='&lt;div class=\'avatar brand-av initials\'&gt;AK&lt;/div&gt;'" />
+      <div>
+        <div class="name">Parsel <b>Tur</b></div>
+        <div class="sub">Armağan Kocabaş · RE/MAX Eksen</div>
+      </div>
+    </div>
+  </div>
+  <div class="scroll">
+
+    <button class="btn ghost" id="helpBtn" style="margin-bottom:16px">❓ Nasıl kullanılır?</button>
+
+    <div class="grp">
+      <h3>1 · Parsel Yükle</h3>
+      <button class="btn primary" id="loadFile">📁 GeoJSON Dosyası Seç</button>
+      <input type="file" id="fileInput" accept=".geojson,.json" hidden />
+      <button class="btn ghost" id="demoBtn">▶ Örnek Parseli Göster</button>
+      <p class="hint">
+        TKGM <a href="https://parselsorgu.tkgm.gov.tr/" target="_blank" rel="noopener">Parsel Sorgu</a>'da
+        parseli bul → <b>GeoJSON</b> seç → indir → buraya yükle.
+      </p>
+    </div>
+
+    <div class="grp">
+      <h3>2 · Görünüm</h3>
+      <label class="fld">Arazi abartısı (yükseklik) · <span id="exagVal">1.5×</span></label>
+      <input type="range" id="exag" min="0" max="3" step="0.1" value="1.5" />
+      <label class="fld">Eğim (pitch) · <span id="pitchVal">65°</span></label>
+      <input type="range" id="pitch" min="0" max="85" step="1" value="65" />
+      <button class="btn ghost" id="fitBtn" style="margin-top:14px">🎯 Parsele Odaklan</button>
+      <button class="btn ghost" id="orbitBtn">🚁 Drone Turu Başlat</button>
+      <label class="fld">Video süresi</label>
+      <select id="recLen">
+        <option value="15">15 saniye</option>
+        <option value="30">30 saniye</option>
+        <option value="57" selected>57 saniye (Sahibinden)</option>
+        <option value="90">90 saniye</option>
+      </select>
+      <button class="btn primary" id="recordBtn" style="margin-top:8px">🎬 Video Kaydet (otomatik tur)</button>
+    </div>
+
+    <div class="grp">
+      <h3>Videoya Danışman Bilgisi</h3>
+      <label class="fld">Danışman adı (videoya yazılır)</label>
+      <input type="text" id="ovName" placeholder="Örn. Armağan Kocabaş" value="Armağan Kocabaş" />
+      <label class="fld">Telefon / not (isteğe bağlı)</label>
+      <input type="text" id="ovPhone" placeholder="0532 000 00 00" />
+      <label class="fld">Köşe</label>
+      <select id="ovCorner">
+        <option value="bl" selected>Sol alt</option>
+        <option value="br">Sağ alt</option>
+      </select>
+      <div class="inline" style="margin-top:10px"><span>Kart arka planı</span><input type="color" id="ovBg" value="#0d9488" /></div>
+      <label class="fld">Danışman fotoğrafı (isteğe bağlı)</label>
+      <button class="btn ghost" id="ovPhotoBtn">📷 Fotoğraf Seç</button>
+      <input type="file" id="ovPhotoInput" accept="image/*" hidden />
+      <label class="switch" style="margin-top:10px"><input type="checkbox" id="ovToggle" checked /> Videoda göster</label>
+      <p class="hint">Yazdığın isim videonun üstüne kalıcı olarak gömülür — indirdikten sonra düzenleme gerekmez.</p>
+    </div>
+
+    <div class="grp">
+      <h3>3 · Parsel Stili</h3>
+      <div class="inline"><span>Dolgu rengi</span><input type="color" id="fillColor" value="#14b8a6" /></div>
+      <label class="fld">Dolgu opaklığı · <span id="opVal">0.35</span></label>
+      <input type="range" id="opacity" min="0" max="1" step="0.05" value="0.35" />
+      <div class="inline" style="margin-top:6px"><span>Çizgi rengi</span><input type="color" id="lineColor" value="#ff4d6d" /></div>
+      <label class="fld">Çizgi kalınlığı · <span id="lwVal">3px</span></label>
+      <input type="range" id="lineWidth" min="1" max="8" step="0.5" value="3" />
+    </div>
+
+    <div class="grp">
+      <h3>4 · Pazarlama Kartı</h3>
+      <label class="switch"><input type="checkbox" id="cardToggle" checked /> Kartı göster</label>
+      <label class="fld">Ada / Parsel etiketi</label>
+      <textarea id="adaText" style="height:38px">Örnek Parsel</textarea>
+      <p class="hint">Kart, ekran görüntüsü veya ekran kaydı (drone turu) alırken sunum için kullanılır.</p>
+    </div>
+
+    <div class="grp">
+      <h3>Veya GeoJSON yapıştır</h3>
+      <textarea id="pasteBox" placeholder='{"type":"Feature", ...}'></textarea>
+      <button class="btn ghost" id="pasteBtn" style="margin-top:8px">Yapıştırılanı Yükle</button>
+    </div>
+
+    <p class="copyr">Parsel Tur · parseltur.com<br>Tüm hakları saklıdır © 2026 Armağan Kocabaş · RE/MAX Eksen · Lüks Gayrimenkul Uzmanı</p>
+
+  </div>
+</aside>
+
+<button id="toggle">≡</button>
+
+<div id="card">
+  <div class="tag">Satılık Arsa</div>
+  <div class="ada" id="cardAda">Örnek Parsel</div>
+  <div class="area" id="cardArea">— m²</div>
+  <hr/>
+  <div class="who-row">
+    <img class="avatar" src="foto.jpg" alt="Armağan Kocabaş"
+         onerror="this.outerHTML='&lt;div class=\'avatar initials\'&gt;AK&lt;/div&gt;'" />
+    <div>
+      <div class="who">Armağan Kocabaş</div>
+      <div class="role">Lüks Gayrimenkul Danışmanı · RE/MAX Eksen</div>
+      <div class="web">armagankocabas.com</div>
+    </div>
+  </div>
+</div>
+
+<!-- Lead yakalama CTA + form -->
+<button id="cta">📲 Mülkünüzü Sat / Kirala — Ücretsiz Destek İste</button>
+
+<div id="modal">
+  <div class="modal-box">
+    <button id="modalClose">✕</button>
+    <div class="modal-tag">Parsel Tur</div>
+    <h2>Mülkünüz için ücretsiz destek</h2>
+    <p class="modal-sub">Mülkünüzü <b>satmak veya kiralamak</b> istiyorsanız bilgilerinizi bırakın; profesyonel tanıtımını hazırlayıp en kısa sürede size ulaşayım.</p>
+    <label class="fld">Adınız Soyadınız</label>
+    <input type="text" id="leadName" placeholder="Örn. Ahmet Yılmaz" />
+    <label class="fld">Telefon</label>
+    <input type="tel" id="leadPhone" placeholder="05XX XXX XX XX" />
+    <label class="fld">Not (isteğe bağlı)</label>
+    <input type="text" id="leadNote" placeholder="Örn. acele satılık, imarlı" />
+    <button class="btn primary" id="leadSend" style="margin-top:16px">WhatsApp'tan Gönder</button>
+    <p class="hint" style="text-align:center">Bilgileriniz doğrudan danışmana iletilir.</p>
+  </div>
+</div>
+
+<!-- Nasıl kullanılır penceresi -->
+<div id="help">
+  <div class="modal-box">
+    <button id="helpClose">✕</button>
+    <div class="modal-tag">Parsel Tur</div>
+    <h2>Nasıl yapılır?</h2>
+
+    <div class="modal-tag" style="margin-top:14px">Bölüm 1 · Parselin dosyasını indir (TKGM)</div>
+    <ol class="help-list">
+      <li><b>parselsorgu.tkgm.gov.tr</b> adresine gir. Şifre veya kayıt gerekmez.</li>
+      <li>İlk girişte çıkan <b>"Kullanım Koşulları"</b> penceresinde <b>"Kabul Ediyorum"</b>a tıkla.</li>
+      <li>Sol taraftaki <b>"İdari"</b> sekmesinden sırayla <b>İl, İlçe, Mahalle/Köy</b> seç; sonra <b>Ada</b> ve <b>Parsel</b> numaralarını yaz.</li>
+      <li><b>"Sorgula"</b>ya bas. Parsel haritada <b>kırmızı</b> olarak işaretlenir.</li>
+      <li>Haritada kırmızı parselin <b>üstüne tıkla</b> — parsel bilgi kutusu açılır.</li>
+      <li>Kutudaki <b>indirme menüsüne</b> (üç nokta ⋮ veya "İndir" butonu) tıkla.</li>
+      <li>Format listesinden <b>"GeoJSON"</b> seç ve <b>İndir</b>'e bas. (PDF/KML/DXF de var; bize GeoJSON lazım.)</li>
+      <li>İnen dosyayı bulabileceğin bir yere kaydet (örn. Masaüstü).</li>
+    </ol>
+
+    <div class="modal-tag" style="margin-top:14px">Bölüm 2 · 3D videoyu oluştur</div>
+    <ol class="help-list" start="9">
+      <li>Parsel Tur'u <b>Chrome</b>'da aç.</li>
+      <li>Sol panelde <b>"GeoJSON Dosyası Seç"</b> → indirdiğin dosyayı seç. Parsel 3D belirir, m² otomatik hesaplanır.</li>
+      <li><b>"Videoya Danışman Bilgisi"</b> alanına adını ve telefonunu yaz; köşeyi ve kart arka plan rengini seç.</li>
+      <li>İstersen <b>"📷 Fotoğraf Seç"</b> ile fotoğrafını ekle; açılan pencerede <b>sürükleyip yakınlaştırarak</b> daire içinde ayarla, <b>Uygula</b> de.</li>
+      <li>İstersen eğim, arazi abartısı ve parsel rengini ayarla.</li>
+      <li><b>Video süresini</b> seç (15 / 30 / 57 / 90 sn), sonra <b>"🎬 Video Kaydet"</b>e bas. Drone turu başlar ve seçtiğin süre kadar otomatik kaydeder.</li>
+      <li>Süre bitince video otomatik iner — Chrome'da <b>MP4</b>, üstünde adın ve fotoğrafın gömülü.</li>
+    </ol>
+
+    <div class="modal-tag" style="margin-top:14px">Bölüm 3 · Paylaş</div>
+    <ol class="help-list" start="15">
+      <li>Videoyu <b>Instagram Reels/Story, Sahibinden ilanı</b> veya WhatsApp'ta paylaş.</li>
+    </ol>
+
+    <p class="hint">İpucu: En iyi sonuç bilgisayar + Chrome. Parsel görünmüyorsa dosyanın GeoJSON olduğundan emin ol.</p>
+  </div>
+</div>
+
+<!-- Fotoğraf düzenleme penceresi -->
+<div id="photoEdit">
+  <div class="modal-box" style="max-width:330px">
+    <button id="photoEditClose">✕</button>
+    <div class="modal-tag">Parsel Tur</div>
+    <h2>Fotoğrafı ayarla</h2>
+    <p class="modal-sub">Sürükleyerek konumla, kaydırıcıyla yakınlaştır. Daire içinde nasıl görünüyorsa videoda öyle çıkar.</p>
+    <div class="crop-wrap"><canvas id="cropCanvas" width="260" height="260"></canvas></div>
+    <label class="fld">Yakınlaştır</label>
+    <input type="range" id="cropZoom" min="1" max="3" step="0.01" value="1" />
+    <button class="btn primary" id="cropApply" style="margin-top:14px">Uygula</button>
+    <button class="btn ghost" id="cropRemove" style="margin-top:8px">Fotoğrafı Kaldır</button>
+  </div>
+</div>
+
+<style>
+  #cta{
+    position:absolute;left:50%;bottom:24px;transform:translateX(-50%);z-index:7;
+    background:linear-gradient(135deg,var(--gold),#0f766e);color:#ffffff;
+    border:none;border-radius:40px;padding:14px 26px;font-size:14px;font-weight:700;
+    cursor:pointer;box-shadow:0 8px 30px rgba(13,148,136,.4);transition:.15s
+  }
+  #cta:hover{filter:brightness(1.08);transform:translateX(-50%) translateY(-2px)}
+  #modal{position:absolute;inset:0;z-index:20;background:rgba(31,42,55,.45);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:20px}
+  #modal.open{display:flex}
+  .modal-box{position:relative;width:100%;max-width:400px;max-height:86vh;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:26px 24px 20px;box-shadow:0 20px 60px rgba(31,42,55,.25)}
+  .modal-box h2{font-size:20px;margin:6px 0 8px}
+  .modal-tag{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--gold)}
+  .modal-sub{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:6px}
+  .modal-box input[type=text],.modal-box input[type=tel]{width:100%;background:#f7f9fc;border:1px solid var(--line);border-radius:9px;color:var(--txt);font-size:14px;padding:11px}
+  #modalClose{position:absolute;top:14px;right:14px;background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer}
+  @media(max-width:680px){#cta{font-size:12.5px;padding:12px 18px;width:calc(100% - 32px);bottom:16px}}
+  .who-row{display:flex;align-items:center;gap:12px}
+  .avatar{width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);flex-shrink:0}
+  .avatar.initials{display:flex;align-items:center;justify-content:center;background:#eaf3f1;color:var(--gold);font-weight:700;font-size:17px;letter-spacing:1px}
+  .brand-row{display:flex;align-items:center;gap:12px}
+  .brand-av{width:46px;height:46px}
+  .copyr{font-size:10.5px;color:var(--muted);text-align:center;line-height:1.5;margin-top:6px;padding-top:14px;border-top:1px solid var(--line)}
+  #recBadge{display:none;position:absolute;left:50%;top:56px;transform:translateX(-50%);z-index:8;background:#e11d48;color:#fff;font-size:12.5px;font-weight:700;padding:7px 16px;border-radius:30px;box-shadow:0 6px 20px rgba(225,29,72,.45)}
+  .scroll input[type=text],.scroll select{width:100%;background:#f7f9fc;border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:13px;padding:9px;margin-top:2px}
+  /* Videoya gömülecek danışman etiketi (canlı önizleme) */
+  #ovPreview{position:absolute;bottom:22px;z-index:4;display:flex;align-items:center;gap:11px;background:linear-gradient(135deg,rgba(13,148,136,.94),rgba(15,118,110,.94));color:#fff;padding:10px 16px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.3);max-width:62%}
+  #ovPreview.bl{left:18px}#ovPreview.br{right:18px}
+  #ovPreview.hide{display:none}
+  #ovPreviewImg{width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.8);display:none;flex-shrink:0}
+  #ovPreviewImg.show{display:block}
+  #ovPreview .nm{font-weight:700;font-size:15px;line-height:1.2}
+  #ovPreview .ph{display:block;font-weight:500;font-size:12px;opacity:.92;margin-top:2px}
+  /* Yardım penceresi */
+  #help{position:absolute;inset:0;z-index:20;background:rgba(31,42,55,.45);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:20px}
+  #help.open{display:flex}
+  .help-list{margin:10px 0 4px 0;padding-left:20px;font-size:13.5px;line-height:1.7;color:var(--txt)}
+  .help-list li{margin-bottom:7px}
+  #photoEdit{position:absolute;inset:0;z-index:25;background:rgba(31,42,55,.5);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:20px}
+  #photoEdit.open{display:flex}
+  .crop-wrap{display:flex;justify-content:center;margin:12px 0 4px}
+  #cropCanvas{width:260px;height:260px;border-radius:12px;background:#0c1322;touch-action:none;cursor:grab}
+  #cropCanvas:active{cursor:grabbing}
+</style>
+
+<script>
+/* ---------- Harita kurulumu (uydu + 3D arazi) ---------- */
+const map = new maplibregl.Map({
+  container:'map',
+  preserveDrawingBuffer:true,
+  maxPitch:85,
+  pitch:65,
+  bearing:-20,
+  zoom:15,
+  center:[29.05,41.02], // İstanbul varsayılan
+  style:{
+    version:8,
+    sources:{
+      satellite:{
+        type:'raster',
+        tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+        tileSize:256, maxzoom:19,
+        attribution:'Görüntü © Esri'
+      },
+      terrain:{
+        type:'raster-dem',
+        tiles:['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+        encoding:'terrarium', tileSize:256, maxzoom:15
+      }
+    },
+    layers:[{id:'sat',type:'raster',source:'satellite'}],
+    terrain:{source:'terrain',exaggeration:1.5},
+    sky:{}
+  }
+});
+map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
+map.addControl(new maplibregl.FullscreenControl(),'top-right');
+
+let hasParcel=false;
+
+map.on('load',()=>{
+  try{
+    if(typeof map.setSky==='function'){
+      map.setSky({
+        'sky-color':'#74a3d6','sky-horizon-blend':0.5,
+        'horizon-color':'#cfe0f0','horizon-fog-blend':0.6,
+        'fog-color':'#dfeaf5','fog-ground-blend':0.4
+      });
+    }
+  }catch(e){ console.warn('sky atlandı',e); }
+});
+window.addEventListener('error',e=>console.warn('yakalandı:',e.message));
+
+/* ---------- GeoJSON normalize + yükle ---------- */
+function toFeatureCollection(data){
+  if(data.type==='FeatureCollection') return data;
+  if(data.type==='Feature') return {type:'FeatureCollection',features:[data]};
+  return {type:'FeatureCollection',features:[{type:'Feature',properties:{},geometry:data}]};
+}
+
+function loadParcel(geojson){
+  let fc;
+  try{ fc = toFeatureCollection(geojson); }
+  catch(e){ alert('GeoJSON okunamadı. Dosyayı kontrol et.'); return; }
+  if(!fc.features || !fc.features.length){ alert('Bu dosyada parsel bulunamadı.'); return; }
+
+  if(map.getLayer('parcel-fill')) map.removeLayer('parcel-fill');
+  if(map.getLayer('parcel-line')) map.removeLayer('parcel-line');
+  if(map.getSource('parcel')) map.removeSource('parcel');
+
+  map.addSource('parcel',{type:'geojson',data:fc});
+  map.addLayer({id:'parcel-fill',type:'fill',source:'parcel',
+    paint:{'fill-color':fillColor.value,'fill-opacity':parseFloat(opacity.value)}});
+  map.addLayer({id:'parcel-line',type:'line',source:'parcel',
+    paint:{'line-color':lineColor.value,'line-width':parseFloat(lineWidth.value)}});
+
+  hasParcel=true;
+
+  // alan hesabı
+  let area=0;
+  try{ fc.features.forEach(f=>{ if(f.geometry) area += turf.area(f); }); }catch(e){}
+  const m2 = Math.round(area);
+  cardArea.textContent = m2 ? m2.toLocaleString('tr-TR')+' m²' : '— m²';
+
+  fitToParcel(fc);
+}
+
+function fitToParcel(fc){
+  try{
+    const bbox = turf.bbox(fc);
+    map.fitBounds([[bbox[0],bbox[1]],[bbox[2],bbox[3]]],
+      {padding:120,pitch:parseFloat(pitch.value),bearing:map.getBearing(),duration:1400});
+  }catch(e){}
+}
+
+/* ---------- Örnek parsel (İstanbul Çekmeköy civarı) ---------- */
+const demo={type:"Feature",properties:{ada:"Örnek Parsel"},geometry:{type:"Polygon",coordinates:[[
+  [29.1942,41.0418],[29.1958,41.0420],[29.1961,41.0408],[29.1945,41.0405],[29.1942,41.0418]
+]]}};
+
+/* ---------- UI bağlantıları ---------- */
+loadFile.onclick=()=>fileInput.click();
+fileInput.onchange=e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{ try{ loadParcel(JSON.parse(r.result)); }catch(err){ alert('Geçersiz GeoJSON.'); } };
+  r.readAsText(f);
+};
+demoBtn.onclick=()=>{ adaText.value='Örnek Parsel'; updateCard(); loadParcel(demo); };
+pasteBtn.onclick=()=>{ try{ loadParcel(JSON.parse(pasteBox.value)); }catch(e){ alert('Yapıştırılan metin geçerli GeoJSON değil.'); } };
+
+exag.oninput=()=>{ exagVal.textContent=parseFloat(exag.value).toFixed(1)+'×'; map.setTerrain({source:'terrain',exaggeration:parseFloat(exag.value)}); };
+pitch.oninput=()=>{ pitchVal.textContent=pitch.value+'°'; map.easeTo({pitch:parseFloat(pitch.value),duration:300}); };
+fitBtn.onclick=()=>{ if(map.getSource('parcel')) fitToParcel(map.getSource('parcel')._data); };
+
+fillColor.oninput=()=>{ if(map.getLayer('parcel-fill')) map.setPaintProperty('parcel-fill','fill-color',fillColor.value); };
+opacity.oninput=()=>{ opVal.textContent=parseFloat(opacity.value).toFixed(2); if(map.getLayer('parcel-fill')) map.setPaintProperty('parcel-fill','fill-opacity',parseFloat(opacity.value)); };
+lineColor.oninput=()=>{ if(map.getLayer('parcel-line')) map.setPaintProperty('parcel-line','line-color',lineColor.value); };
+lineWidth.oninput=()=>{ lwVal.textContent=lineWidth.value+'px'; if(map.getLayer('parcel-line')) map.setPaintProperty('parcel-line','line-width',parseFloat(lineWidth.value)); };
+
+/* ---------- Drone turu (orbit) ---------- */
+let orbiting=false,raf;
+const ORBIT_SPEED = 0.12;   // dönüş hızı (derece/kare) — küçük = daha yavaş/sinematik
+function orbit(){ if(!orbiting)return; map.setBearing(map.getBearing()+ORBIT_SPEED); raf=requestAnimationFrame(orbit); }
+orbitBtn.onclick=()=>{
+  orbiting=!orbiting;
+  orbitBtn.textContent = orbiting ? '⏹ Drone Turunu Durdur' : '🚁 Drone Turu Başlat';
+  if(orbiting){ map.easeTo({pitch:Math.max(parseFloat(pitch.value),65),duration:600}); orbit(); }
+  else cancelAnimationFrame(raf);
+};
+
+/* ---------- Videoya gömülen danışman etiketi ---------- */
+function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function textOn(hex){ const c=(hex||'#0d9488').replace('#',''); const r=parseInt(c.substr(0,2),16),g=parseInt(c.substr(2,2),16),b=parseInt(c.substr(4,2),16); return ((0.299*r+0.587*g+0.114*b)/255)>0.62 ? '#152230' : '#ffffff'; }
+function drawOverlay(ctx,w,h){
+  if(!ovToggle.checked) return;
+  const name=(ovName.value||'').trim(), phone=(ovPhone.value||'').trim();
+  const hasImg = ovImgEl && ovImgReady;
+  if(!name && !phone && !hasImg) return;
+  const pad=Math.round(h*0.020), fs=Math.round(h*0.032), fs2=Math.round(h*0.022), margin=Math.round(h*0.03);
+  ctx.font=`700 ${fs}px "Segoe UI",system-ui,sans-serif`;
+  const nameW=name?ctx.measureText(name).width:0;
+  ctx.font=`500 ${fs2}px "Segoe UI",system-ui,sans-serif`;
+  const phoneW=phone?ctx.measureText(phone).width:0;
+  const textW=Math.max(nameW,phoneW);
+  const textH=(name?fs:0)+(phone?Math.round(fs2*1.5):0);
+  const avSize=hasImg?Math.round(h*0.075):0;
+  const gap=hasImg?Math.round(h*0.014):0;
+  const contentH=Math.max(avSize,textH);
+  const boxW=pad*2 + avSize + gap + textW;
+  const boxH=pad*2 + contentH;
+  const x = ovCorner.value==='br' ? (w-boxW-margin) : margin;
+  const y = h-boxH-margin;
+  roundRect(ctx,x,y,boxW,boxH,Math.round(h*0.013)); ctx.fillStyle=ovBg.value; ctx.fill();
+  const tc=textOn(ovBg.value);
+  // foto (yuvarlak)
+  if(hasImg){
+    const ax=x+pad, ay=y+(boxH-avSize)/2, r=avSize/2;
+    ctx.save(); ctx.beginPath(); ctx.arc(ax+r,ay+r,r,0,Math.PI*2); ctx.clip();
+    ctx.drawImage(ovImgEl,ax,ay,avSize,avSize); ctx.restore();
+    ctx.beginPath(); ctx.arc(ax+r,ay+r,r,0,Math.PI*2); ctx.lineWidth=Math.max(2,h*0.0035); ctx.strokeStyle=tc; ctx.globalAlpha=.85; ctx.stroke(); ctx.globalAlpha=1;
+  }
+  // yazı
+  const tx=x+pad+(hasImg?avSize+gap:0);
+  let ty=y+(boxH-textH)/2;
+  ctx.fillStyle=tc; ctx.textBaseline='top';
+  if(name){ ctx.font=`700 ${fs}px "Segoe UI",system-ui,sans-serif`; ctx.fillText(name,tx,ty); ty+=fs; }
+  if(phone){ ctx.font=`500 ${fs2}px "Segoe UI",system-ui,sans-serif`; ctx.fillText(phone,tx,ty+Math.round(fs2*0.4)); }
+}
+
+/* ---------- Otomatik video kaydı (drone turu + gömülü isim) ---------- */
+let mediaRec, recChunks=[];
+recordBtn.onclick=()=>{
+  if(!hasParcel){ alert('Önce bir parsel yükle.'); return; }
+  const mapCanvas = map.getCanvas();
+  const w = mapCanvas.width, h = mapCanvas.height;
+  const rc = document.createElement('canvas'); rc.width=w; rc.height=h;
+  const rctx = rc.getContext('2d');
+  let compositing=true;
+  (function frame(){ if(!compositing) return; try{ rctx.drawImage(mapCanvas,0,0,w,h); drawOverlay(rctx,w,h); }catch(e){} requestAnimationFrame(frame); })();
+
+  let stream;
+  try{ stream = rc.captureStream(30); }
+  catch(e){ compositing=false; alert('Tarayıcın otomatik kaydı desteklemiyor. Ekran kaydını kullan.'); return; }
+
+  // Önce MP4 (Sahibinden/Instagram uyumlu), desteklenmezse WebM'e düş
+  const candidates = ['video/mp4;codecs=avc1.42E01E','video/mp4','video/webm;codecs=vp9','video/webm'];
+  let mime=''; for(const t of candidates){ try{ if(MediaRecorder.isTypeSupported(t)){ mime=t; break; } }catch(e){} }
+  const ext = mime.indexOf('mp4')>-1 ? 'mp4' : 'webm';
+  const outType = ext==='mp4' ? 'video/mp4' : 'video/webm';
+
+  try{ mediaRec = new MediaRecorder(stream, mime ? {mimeType:mime,videoBitsPerSecond:8000000} : {videoBitsPerSecond:8000000}); }
+  catch(e){ compositing=false; alert('Kayıt başlatılamadı. Ekran kaydını kullan.'); return; }
+
+  recChunks=[];
+  mediaRec.ondataavailable = e=>{ if(e.data && e.data.size) recChunks.push(e.data); };
+  mediaRec.onstop = ()=>{
+    compositing=false;
+    const blob = new Blob(recChunks,{type:outType});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url; a.download='parsel-tur.'+ext; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  };
+
+  if(!orbiting) orbitBtn.click();   // turu başlat
+  recordBtn.disabled = true;
+  mediaRec.start();
+  const REC_SECONDS = parseInt(recLen.value,10) || 57;   // 👈 panelden seçilen video süresi
+  let secs = REC_SECONDS;
+  recBadge.style.display='block';
+  recBadge.textContent='● Kaydediliyor… '+secs+'s';
+  const iv = setInterval(()=>{
+    secs--;
+    recBadge.textContent='● Kaydediliyor… '+secs+'s';
+    if(secs<=0){
+      clearInterval(iv);
+      try{ mediaRec.stop(); }catch(e){}
+      recBadge.style.display='none';
+      recordBtn.disabled = false;
+      if(orbiting) orbitBtn.click(); // turu durdur
+    }
+  },1000);
+};
+
+/* ---------- Danışman etiketi canlı önizleme ---------- */
+let ovImgEl=null, ovImgReady=false;
+
+/* Fotoğraf düzenleyici (daire içinde sürükle + yakınlaştır) */
+let srcImg=null, cropScale=1, cropBase=1, cropOx=0, cropOy=0;
+const CV=260, cropCtx=cropCanvas.getContext('2d');
+
+ovPhotoBtn.onclick=()=>{ if(srcImg){ photoEdit.classList.add('open'); drawCrop(); } else ovPhotoInput.click(); };
+ovPhotoInput.onchange=e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ const im=new Image(); im.onload=()=>{ srcImg=im; initCrop(); photoEdit.classList.add('open'); }; im.src=r.result; };
+  r.readAsDataURL(f);
+  e.target.value='';
+};
+function initCrop(){
+  cropBase = CV / Math.min(srcImg.width, srcImg.height);
+  cropZoom.value=1; cropScale=cropBase;
+  cropOx=(CV-srcImg.width*cropScale)/2; cropOy=(CV-srcImg.height*cropScale)/2;
+  drawCrop();
+}
+function clampCrop(){
+  const iw=srcImg.width*cropScale, ih=srcImg.height*cropScale;
+  cropOx=Math.min(0,Math.max(CV-iw,cropOx));
+  cropOy=Math.min(0,Math.max(CV-ih,cropOy));
+}
+function drawCrop(){
+  if(!srcImg) return;
+  cropCtx.clearRect(0,0,CV,CV);
+  cropCtx.drawImage(srcImg,cropOx,cropOy,srcImg.width*cropScale,srcImg.height*cropScale);
+  cropCtx.save();
+  cropCtx.fillStyle='rgba(12,19,34,.55)';
+  cropCtx.beginPath(); cropCtx.rect(0,0,CV,CV); cropCtx.arc(CV/2,CV/2,CV/2-2,0,Math.PI*2,true); cropCtx.fill('evenodd');
+  cropCtx.restore();
+  cropCtx.beginPath(); cropCtx.arc(CV/2,CV/2,CV/2-2,0,Math.PI*2); cropCtx.strokeStyle='#fff'; cropCtx.lineWidth=2; cropCtx.stroke();
+}
+cropZoom.oninput=()=>{
+  const ns=cropBase*parseFloat(cropZoom.value), c=CV/2, k=ns/cropScale;
+  cropOx=c-(c-cropOx)*k; cropOy=c-(c-cropOy)*k; cropScale=ns; clampCrop(); drawCrop();
+};
+let dragging=false,lastX,lastY;
+cropCanvas.addEventListener('pointerdown',e=>{ dragging=true; lastX=e.clientX; lastY=e.clientY; cropCanvas.setPointerCapture(e.pointerId); });
+cropCanvas.addEventListener('pointermove',e=>{ if(!dragging)return; const rc=cropCanvas.getBoundingClientRect(); cropOx+=(e.clientX-lastX)*(CV/rc.width); cropOy+=(e.clientY-lastY)*(CV/rc.height); lastX=e.clientX; lastY=e.clientY; clampCrop(); drawCrop(); });
+cropCanvas.addEventListener('pointerup',()=>dragging=false);
+cropCanvas.addEventListener('pointercancel',()=>dragging=false);
+cropApply.onclick=()=>{
+  const O=440, oc=document.createElement('canvas'); oc.width=O; oc.height=O;
+  const octx=oc.getContext('2d'), ratio=O/CV;
+  octx.drawImage(srcImg, cropOx*ratio, cropOy*ratio, srcImg.width*cropScale*ratio, srcImg.height*cropScale*ratio);
+  const data=oc.toDataURL('image/png'), im=new Image();
+  im.onload=()=>{ ovImgEl=im; ovImgReady=true; ovPreviewImg.src=data; ovPreviewImg.classList.add('show'); ovPhotoBtn.textContent='✓ Fotoğrafı düzenle'; updateOverlayPreview(); };
+  im.src=data;
+  photoEdit.classList.remove('open');
+};
+cropRemove.onclick=()=>{
+  srcImg=null; ovImgEl=null; ovImgReady=false;
+  ovPreviewImg.classList.remove('show'); ovPreviewImg.src='';
+  ovPhotoBtn.textContent='📷 Fotoğraf Seç';
+  photoEdit.classList.remove('open'); updateOverlayPreview();
+};
+photoEditClose.onclick=()=>photoEdit.classList.remove('open');
+photoEdit.onclick=e=>{ if(e.target===photoEdit) photoEdit.classList.remove('open'); };
+
+function updateOverlayPreview(){
+  const name=ovName.value.trim(), phone=ovPhone.value.trim();
+  ovPreview.classList.toggle('hide', !ovToggle.checked || (!name && !phone && !ovImgReady));
+  ovPreview.classList.toggle('br', ovCorner.value==='br');
+  ovPreview.classList.toggle('bl', ovCorner.value==='bl');
+  ovPreview.style.background=ovBg.value;
+  ovPreview.style.color=textOn(ovBg.value);
+  ovPreviewName.textContent=name;
+  ovPreviewPhone.textContent=phone;
+}
+ovName.oninput=updateOverlayPreview; ovPhone.oninput=updateOverlayPreview;
+ovCorner.onchange=updateOverlayPreview; ovToggle.onchange=updateOverlayPreview;
+ovBg.oninput=updateOverlayPreview;
+updateOverlayPreview();
+
+/* ---------- Yardım penceresi ---------- */
+helpBtn.onclick=()=>help.classList.add('open');
+helpClose.onclick=()=>help.classList.remove('open');
+help.onclick=e=>{ if(e.target===help) help.classList.remove('open'); };
+
+/* ---------- Pazarlama kartı ---------- */
+function updateCard(){ cardAda.textContent=adaText.value||'—'; }
+adaText.oninput=updateCard;
+cardToggle.onchange=()=>card.classList.toggle('hide',!cardToggle.checked);
+
+/* ---------- Lead yakalama (WhatsApp) ---------- */
+/* 👇 BURAYA KENDİ NUMARANI YAZ — ülke kodu + numara, başında + veya 0 olmadan.
+   Örnek: 0532 123 45 67  →  "905321234567"                                      */
+const WHATSAPP = "905079173358";
+
+cta.onclick   = ()=> modal.classList.add('open');
+modalClose.onclick = ()=> modal.classList.remove('open');
+modal.onclick = e=>{ if(e.target===modal) modal.classList.remove('open'); };
+
+leadSend.onclick = ()=>{
+  const ad   = leadName.value.trim();
+  const tel  = leadPhone.value.trim();
+  const not  = leadNote.value.trim();
+  if(!ad || !tel){ alert('Lütfen ad ve telefon girin.'); return; }
+  const parsel = adaText.value.trim();
+  const alan   = (cardArea.textContent||'').trim();
+  const realParcel = hasParcel && parsel && parsel!=='Örnek Parsel';
+  let msg = `Merhaba Armağan Bey, mülkümü satmak veya kiralamak istiyorum, bu konuda bana destek olabilir misiniz?`;
+  if(realParcel){
+    msg += `\nParsel: ${parsel}`;
+    if(alan && alan!=='— m²') msg += `\nAlan: ${alan}`;
+  }
+  msg += `\nAdım: ${ad}\nTelefon: ${tel}`;
+  if(not) msg += `\nNot: ${not}`;
+  window.open(`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`,'_blank');
+  modal.classList.remove('open');
+};
+
+/* ---------- Panel aç/kapa ---------- */
+toggle.onclick=()=>panel.classList.toggle('closed');
+</script>
+</body>
+</html>
