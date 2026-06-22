@@ -142,7 +142,8 @@
       <button class="btn ghost" id="demoBtn">▶ Örnek Parseli Göster</button>
       <p class="hint">
         TKGM <a href="https://parselsorgu.tkgm.gov.tr/" target="_blank" rel="noopener">Parsel Sorgu</a>'da
-        parseli bul → <b>GeoJSON</b> seç → indir → buraya yükle.
+        parseli bul → <b>GeoJSON</b> seç → indir → buraya yükle.<br>
+        <span style="opacity:.85">Yüklediğiniz dosya yalnızca tarayıcınızda işlenir, sunucuya gönderilmez. Verinin kullanımından kullanıcı sorumludur.</span>
       </p>
     </div>
 
@@ -216,7 +217,7 @@
       <button class="btn ghost" id="pasteBtn" style="margin-top:8px">Yapıştırılanı Yükle</button>
     </div>
 
-    <p class="copyr">Parsel Tur · parseltur.com<br>Tüm hakları saklıdır © 2026 Armağan Kocabaş · RE/MAX Eksen · Lüks Gayrimenkul Uzmanı</p>
+    <p class="copyr">Parsel Tur bağımsız bir araçtır; TKGM, Çevre ve Şehircilik Bakanlığı veya herhangi bir resmi kurumla bağlantılı/yetkili değildir. Yüklenen veriler kullanıcıya aittir ve kullanımından kullanıcı sorumludur. Buradaki 3 boyutlu görüntüler ve videolar yalnızca tanıtım ve bilgilendirme amaçlıdır; resmi ölçü, sınır, alan veya belge niteliği taşımaz. Resmi ve bağlayıcı bilgi için TKGM esastır.<br><a href="gizlilik.html" style="color:var(--gold-soft)">Gizlilik &amp; KVKK</a> · Parsel Tur · parseltur.com<br>Tüm hakları saklıdır © 2026 Armağan Kocabaş · RE/MAX Eksen · Lüks Gayrimenkul Uzmanı</p>
 
   </div>
 </aside>
@@ -254,8 +255,9 @@
     <input type="tel" id="leadPhone" placeholder="05XX XXX XX XX" />
     <label class="fld">Not (isteğe bağlı)</label>
     <input type="text" id="leadNote" placeholder="Örn. acele satılık, imarlı" />
-    <button class="btn primary" id="leadSend" style="margin-top:16px">WhatsApp'tan Gönder</button>
-    <p class="hint" style="text-align:center">Bilgileriniz doğrudan danışmana iletilir.</p>
+    <label class="kvkk"><input type="checkbox" id="leadKvkk" /> <span><a href="gizlilik.html" target="_blank" rel="noopener">KVKK Aydınlatma Metni</a>'ni okudum; ad ve telefon bilgilerimin, talebime dönüş yapılması amacıyla işlenmesine ve WhatsApp üzerinden iletilmesine onay veriyorum.</span></label>
+    <button class="btn primary" id="leadSend" style="margin-top:14px">WhatsApp'tan Gönder</button>
+    <p class="hint" style="text-align:center">Bilgileriniz yalnızca size dönüş yapmak için kullanılır, üçüncü kişilerle paylaşılmaz.</p>
   </div>
 </div>
 
@@ -289,6 +291,9 @@
   .modal-tag{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--gold)}
   .modal-sub{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:6px}
   .modal-box input[type=text],.modal-box input[type=tel]{width:100%;background:#f7f9fc;border:1px solid var(--line);border-radius:9px;color:var(--txt);font-size:14px;padding:11px}
+  .kvkk{display:flex;align-items:flex-start;gap:9px;margin-top:13px;font-size:11.5px;color:var(--muted);line-height:1.5;cursor:pointer}
+  .kvkk input{margin-top:2px;width:16px;height:16px;flex-shrink:0;accent-color:var(--gold)}
+  .kvkk a{color:var(--gold-soft);font-weight:600}
   #modalClose{position:absolute;top:14px;right:14px;background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer}
   @media(max-width:680px){#cta{font-size:12.5px;padding:12px 18px;width:calc(100% - 32px);bottom:16px}}
   .who-row{display:flex;align-items:center;gap:12px}
@@ -678,6 +683,7 @@ leadSend.onclick = ()=>{
   const tel  = leadPhone.value.trim();
   const not  = leadNote.value.trim();
   if(!ad || !tel){ alert('Lütfen ad ve telefon girin.'); return; }
+  if(!leadKvkk.checked){ alert('Devam etmek için KVKK aydınlatma onayını işaretleyin.'); return; }
   const parsel = adaText.value.trim();
   const alan   = (cardArea.textContent||'').trim();
   const realParcel = hasParcel && parsel && parsel!=='Örnek Parsel';
