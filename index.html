@@ -441,7 +441,7 @@ function fitToParcel(fc){
   try{
     const bbox = turf.bbox(fc);
     map.fitBounds([[bbox[0],bbox[1]],[bbox[2],bbox[3]]],
-      {padding:120,pitch:parseFloat(pitch.value),bearing:map.getBearing(),duration:1400});
+      {padding:55,pitch:parseFloat(pitch.value),bearing:map.getBearing(),duration:1400});
   }catch(e){}
 }
 
@@ -481,27 +481,34 @@ lineWidth.oninput=()=>{ lwVal.textContent=lineWidth.value+'px'; if(map.getLayer(
 
 /* ---------- Yeni Nesil Sinematik Drone Turu ---------- */
 let orbiting=false,raf;
-const ORBIT_SPEED = 0.12;
+const DEG_PER_SEC = 6;   // dönüş hızı (derece/sn) — cihazdan bağımsız, sabit
 
 let tourStart = 0;
+let startBearing = 0;
 let initialZoom = 15;
 let initialPitch = 65;
 
 function orbit(){ 
   if(!orbiting)return; 
 
-  map.setBearing(map.getBearing()+ORBIT_SPEED); 
-
   const mode = document.getElementById('tourType').value;
   const totalSeconds = parseInt(document.getElementById('recLen').value, 10) || 57;
   const elapsed = (Date.now() - tourStart) / 1000;        // gerçek geçen süre (sn)
   const progress = Math.min(elapsed / totalSeconds, 1);   // 0 → 1, tam süreye yayılır
 
+  // dönüş — zamana bağlı (kare hızından bağımsız, hep aynı hızda)
+  map.setBearing(startBearing + elapsed * DEG_PER_SEC);
+
   if (mode === 'helix') {
-    map.setZoom(initialZoom - (progress * 1.5));
-    map.setPitch(initialPitch - (progress * 15));
+    // dönerek uzaklaş + yüksel
+    map.setZoom(initialZoom - (progress * 1.3));
+    map.setPitch(initialPitch - (progress * 14));
   } else if (mode === 'dive') {
-    map.setZoom((initialZoom - 1.2) + (progress * 1.2));
+    // dönerek belirgin şekilde yakınlaş
+    map.setZoom(initialZoom + (progress * 1.6));
+  } else {
+    // klasik dönüş — yavaşça hafifçe yakınlaş
+    map.setZoom(initialZoom + (progress * 0.6));
   }
 
   raf=requestAnimationFrame(orbit); 
@@ -512,6 +519,7 @@ orbitBtn.onclick=()=>{
   orbitBtn.textContent = orbiting ? '⏹ Drone Turunu Durdur' : '🚁 Drone Turu Başlat';
   if(orbiting){ 
     tourStart = Date.now();
+    startBearing = map.getBearing();
     initialZoom = map.getZoom();
     initialPitch = Math.max(parseFloat(pitch.value),65);
     map.easeTo({pitch:initialPitch,duration:600}); 
