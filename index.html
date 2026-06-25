@@ -18,13 +18,16 @@
 <meta name="twitter:card" content="summary_large_image" />
 <title>Parsel Tur · Armağan Kocabaş</title>
 
+<!-- Bağlantı ön-ısıtması (daha hızlı açılış) -->
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+<link rel="preconnect" href="https://server.arcgisonline.com" crossorigin />
+<link rel="preconnect" href="https://elevation-tiles-prod.s3.amazonaws.com" crossorigin />
+<link rel="dns-prefetch" href="https://server.arcgisonline.com" />
+
 <!-- MapLibre & Turf -->
 <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7.1.0/turf.min.js"></script>
-
-<!-- Hızlı ve Akıcı Animasyon İçin Hafif GSAP -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 
 <style>
   :root{
@@ -38,12 +41,23 @@
   #map{position:absolute;inset:0; filter: blur(10px); transform: scale(1.05); transition: filter 1.2s ease, transform 1.2s ease;}
   #map.ready{filter: blur(0); transform: scale(1);}
 
+  /* Açılış animasyonu (GSAP yerine saf CSS) */
+  #toggle{transition:left .25s ease, opacity .45s ease}
+  .badge{transition:opacity .45s ease, transform .45s ease}
+  #card{transition:opacity .45s ease, transform .45s ease}
+  #cta{opacity:0; transform:translateX(-50%) translateY(20px); transition:opacity .45s ease, transform .45s ease}
+  body.loaded #panel{opacity:1; transform:translateX(0)}
+  body.loaded #toggle{opacity:1}
+  body.loaded .badge{opacity:1; transform:translateX(-50%)}
+  body.loaded #card{opacity:1; transform:translateY(0)}
+  body.loaded #cta{opacity:1; transform:translateX(-50%) translateY(0)}
+
   /* Panel Animasyon Başlangıç Değerleri */
   #panel{
     position:absolute;top:0;left:0;height:100%;width:330px;z-index:5;
     background:linear-gradient(180deg,#ffffff 0%,#f5f8fb 100%);
     border-right:1px solid var(--line);display:flex;flex-direction:column;
-    transition:transform .25s ease;box-shadow:8px 0 30px rgba(0,0,0,.4);
+    transition:transform .25s ease, opacity .4s ease;box-shadow:8px 0 30px rgba(0,0,0,.4);
     opacity: 0; transform: translateX(-40px);
   }
   #panel.closed{transform:translateX(-330px) !important}
@@ -118,7 +132,7 @@
 
 <div class="badge">🚁 <b>Parsel Tur</b> · uydu + 3D arazi modeli</div>
 <div id="recBadge">● Kaydediliyor…</div>
-<div id="ovPreview" class="bl" style="opacity:0;"><img id="ovPreviewImg" alt="" /><div class="txt"><span class="nm" id="ovPreviewName">Armağan Kocabaş</span><span class="ph" id="ovPreviewPhone"></span></div></div>
+<div id="ovPreview" class="bl"><img id="ovPreviewImg" alt="" /><div class="txt"><span class="nm" id="ovPreviewName">Armağan Kocabaş</span><span class="ph" id="ovPreviewPhone"></span></div></div>
 
 <aside id="panel">
   <div class="brand">
@@ -248,7 +262,7 @@
 </div>
 
 <!-- Lead yakalama CTA + form -->
-<button id="cta" style="opacity: 0; transform: translate(-50%, 20px);">📲 Mülkünüzü Sat / Kirala — Ücretsiz Destek İste</button>
+<button id="cta">📲 Mülkünüzü Sat / Kirala — Ücretsiz Destek İste</button>
 
 <div id="modal">
   <div class="modal-box">
@@ -331,6 +345,9 @@
 </style>
 
 <script>
+/* ---------- Arayüzü hemen göster (haritayı bekleme) ---------- */
+try{ document.body.classList.add('loaded'); }catch(e){}
+
 /* ---------- Harita kurulumu (uydu + 3D arazi) ---------- */
 const map = new maplibregl.Map({
   container:'map',
@@ -379,14 +396,8 @@ map.on('load',()=>{
     document.getElementById('map').classList.add('ready');
     
     // KUSURSUZ VE EŞ ZAMANLI AÇILIŞ ANIMASYONU
-    gsap.timeline()
-      .to("#panel", { opacity: 1, x: 0, duration: 0.5, ease: "power2.out" })
-      .to("#toggle, .badge, #card, #cta, #ovPreview", { 
-        opacity: 1, 
-        y: 0, 
-        duration: 0.4, 
-        ease: "power2.out" 
-      }, "-=0.3");
+    // Harita hazır olunca arayüz zaten görünür; sadece netleştir
+    document.body.classList.add('loaded');
 
   }catch(e){ console.warn('sky atlandı',e); }
 });
