@@ -363,7 +363,7 @@ const map = new maplibregl.Map({
       satellite:{
         type:'raster',
         tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-        tileSize:256, maxzoom:19,
+        tileSize:256, maxzoom:17,
         attribution:'Görüntü © Esri'
       },
       terrain:{
@@ -441,7 +441,7 @@ function fitToParcel(fc){
   try{
     const bbox = turf.bbox(fc);
     map.fitBounds([[bbox[0],bbox[1]],[bbox[2],bbox[3]]],
-      {padding:55,pitch:parseFloat(pitch.value),bearing:map.getBearing(),duration:1400});
+      {padding:55,maxZoom:17.5,pitch:parseFloat(pitch.value),bearing:map.getBearing(),duration:1400});
   }catch(e){}
 }
 
@@ -504,11 +504,11 @@ function orbit(){
     map.setZoom(initialZoom - (progress * 1.3));
     map.setPitch(initialPitch - (progress * 14));
   } else if (mode === 'dive') {
-    // dönerek belirgin şekilde yakınlaş
-    map.setZoom(initialZoom + (progress * 1.6));
+    // dönerek belirgin şekilde yakınlaş (uydu sınırını aşma)
+    map.setZoom(Math.min(initialZoom + (progress * 1.6), 18));
   } else {
     // klasik dönüş — yavaşça hafifçe yakınlaş
-    map.setZoom(initialZoom + (progress * 0.6));
+    map.setZoom(Math.min(initialZoom + (progress * 0.6), 18));
   }
 
   raf=requestAnimationFrame(orbit); 
