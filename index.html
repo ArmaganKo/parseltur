@@ -324,6 +324,19 @@
   .brand-av{width:46px;height:46px}
   .copyr{font-size:10.5px;color:var(--muted);text-align:center;line-height:1.5;margin-top:6px;padding-top:14px;border-top:1px solid var(--line)}
   #recBadge{display:none;position:absolute;left:50%;top:56px;transform:translateX(-50%);z-index:8;background:#e11d48;color:#fff;font-size:12.5px;font-weight:700;padding:7px 16px;border-radius:30px;box-shadow:0 6px 20px rgba(225,29,72,.45)}
+
+  /* Mobil yönlendirme çubuğu */
+  #mobileBar{display:none;position:fixed;left:0;right:0;bottom:0;z-index:40;background:#0f766e;color:#fff;padding:12px 14px;font-size:13.5px;line-height:1.5;box-shadow:0 -6px 24px rgba(0,0,0,.25)}
+  #mobileBar b{color:#fff}
+  #mobileBar .row{display:flex;gap:8px;margin-top:9px}
+  #mobileBar button{flex:1;border:none;border-radius:9px;padding:10px;font-size:13px;font-weight:700;cursor:pointer}
+  #mobileBar .share{background:#fff;color:#0f766e}
+  #mobileBar .close{background:rgba(255,255,255,.18);color:#fff;flex:0 0 auto;padding:10px 14px}
+
+  /* İlk kullanım ipucu */
+  #firstTip{display:none;position:absolute;left:50%;top:60px;transform:translateX(-50%);z-index:30;background:#152230;color:#fff;padding:14px 18px;border-radius:14px;font-size:13.5px;line-height:1.7;box-shadow:0 12px 34px rgba(0,0,0,.35);max-width:min(92vw,420px)}
+  #firstTip b{color:#5eead4}
+  #firstTip .ok{margin-top:10px;width:100%;border:none;border-radius:8px;background:#0d9488;color:#fff;font-weight:700;padding:9px;cursor:pointer}
   .scroll input[type=text],.scroll select{width:100%;background:#f7f9fc;border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:13px;padding:9px;margin-top:2px}
   .scroll select{-webkit-appearance:none;-moz-appearance:none;appearance:none;padding-right:30px;background-image:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7785' stroke-width='3'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 11px center;cursor:pointer}
   /* Videoya gömülecek danışman etiketi (canlı önizleme) */
@@ -606,11 +619,26 @@ recordBtn.onclick=()=>{
 
 function startRecording(restore){
   const mapCanvas = map.getCanvas();
-  const w = mapCanvas.width, h = mapCanvas.height;
-  const rc = document.createElement('canvas'); rc.width=w; rc.height=h;
+
+  // Sabit çıktı çözünürlüğü — ekrandan bağımsız, her cihazda aynı kalite
+  const RES_MAP = {'16:9':[1920,1080], '9:16':[1080,1920], '1:1':[1080,1080]};
+  const [W,H] = RES_MAP[ratioSel.value] || [1920,1080];
+  const rc = document.createElement('canvas'); rc.width=W; rc.height=H;
   const rctx = rc.getContext('2d');
+
   let compositing=true;
-  (function frame(){ if(!compositing) return; try{ rctx.drawImage(mapCanvas,0,0,w,h); drawOverlay(rctx,w,h); }catch(e){} requestAnimationFrame(frame); })();
+  (function frame(){
+    if(!compositing) return;
+    try{
+      const w=mapCanvas.width, h=mapCanvas.height;
+      // cover-crop: haritayı hedefe taşan şekilde ölçekle, ortala (boşluk kalmaz)
+      const s=Math.max(W/w, H/h), dw=w*s, dh=h*s;
+      rctx.fillStyle='#000'; rctx.fillRect(0,0,W,H);
+      rctx.drawImage(mapCanvas, (W-dw)/2, (H-dh)/2, dw, dh);
+      drawOverlay(rctx,W,H);
+    }catch(e){}
+    requestAnimationFrame(frame);
+  })();
 
   const fail = (msg)=>{ compositing=false; if(restore) restore(); recBadge.style.display='none'; recordBtn.disabled=false; alert(msg); };
 
@@ -772,6 +800,51 @@ leadSend.onclick = ()=>{
 
 /* ---------- Panel aç/kapa ---------- */
 toggle.onclick=()=>panel.classList.toggle('closed');
+</script>
+<!-- Mobil yönlendirme -->
+<div id="mobileBar">
+  <b>📱 Telefondan mı girdin?</b> Araç telefonda da çalışır; ama en akıcı 3D ve en kaliteli video <b>bilgisayar + Chrome</b>'da alınır. Linki kendine gönder, bilgisayarda 2 dakikada videon hazır.
+  <div class="row">
+    <button class="share" id="mbShare">🔗 Linki paylaş / kopyala</button>
+    <button class="close" id="mbClose">✕</button>
+  </div>
+</div>
+
+<!-- İlk kullanım ipucu -->
+<div id="firstTip">
+  <b>3 adımda video:</b><br>
+  1️⃣ TKGM <b>Parsel Sorgu</b>'dan parselini bul, <b>GeoJSON</b> indir<br>
+  2️⃣ <b>"GeoJSON Dosyası Seç"</b> ile yükle (adın videoya işlenir)<br>
+  3️⃣ <b>"🎬 Video Kaydet"</b> — MP4 otomatik iner<br>
+  <button class="ok" id="tipOk">Anladım, başlayalım</button>
+</div>
+
+<script>
+/* ---------- Mobil yönlendirme + ilk kullanım ipucu ---------- */
+(function(){
+  var isMobile = window.matchMedia('(max-width: 820px)').matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  var bar = document.getElementById('mobileBar');
+  var tip = document.getElementById('firstTip');
+
+  if(isMobile && !localStorage.getItem('pt_mobile_ok')){
+    bar.style.display='block';
+  }
+  document.getElementById('mbClose').onclick = function(){
+    bar.style.display='none'; localStorage.setItem('pt_mobile_ok','1');
+  };
+  document.getElementById('mbShare').onclick = function(){
+    var url='https://www.parseltur.com';
+    if(navigator.share){ navigator.share({title:'Parsel Tur',text:'Arsanı 2 dakikada 3D drone videosuna çevir (ücretsiz):',url:url}).catch(function(){}); }
+    else if(navigator.clipboard){ navigator.clipboard.writeText(url); this.textContent='✓ Kopyalandı'; }
+  };
+
+  if(!isMobile && !localStorage.getItem('pt_tip_ok')){
+    tip.style.display='block';
+  }
+  document.getElementById('tipOk').onclick = function(){
+    tip.style.display='none'; localStorage.setItem('pt_tip_ok','1');
+  };
+})();
 </script>
 </body>
 </html>
