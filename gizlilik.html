@@ -4,7 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="color-scheme" content="only light" />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%230d9488'/><text x='32' y='45' font-family='Arial' font-size='32' font-weight='bold' fill='white' text-anchor='middle'>PT</text></svg>" />
+<meta name="theme-color" content="#f3f6f9" />
+<link rel="icon" type="image/png" href="logo-192.png" />
+<link rel="apple-touch-icon" href="logo-192.png" />
 <title>Gizlilik & KVKK · Parsel Tur</title>
 <meta name="description" content="Parsel Tur gizlilik politikası ve KVKK aydınlatma metni." />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -32,6 +34,10 @@
   .box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin:18px 0}
   footer{border-top:1px solid var(--line);padding:26px 0 50px;margin-top:30px}
   .fnote{font-size:12px;color:var(--muted);text-align:center;line-height:1.6}
+  /* Koyu mod zırhı: her koşulda açık tema */
+  @media (prefers-color-scheme: dark){
+    html,body{background:#f3f6f9 !important;color:#475467 !important}
+  }
 </style>
 </head>
 <body>
@@ -49,7 +55,7 @@
 
   <div class="box">
     <h2>1. Veri Sorumlusu</h2>
-    <p>Bu internet sitesi (parseltur.com) ve üzerinden yürütülen veri işleme faaliyetlerinin veri sorumlusu <b>Armağan Kocabaş</b>'tır (RE/MAX Eksen bünyesinde faaliyet gösteren gayrimenkul danışmanı). İletişim: <a href="https://armagankocabas.com" target="_blank" rel="noopener">armagankocabas.com</a>.</p>
+    <p>Bu internet sitesi (parseltur.com) ve üzerinden yürütülen veri işleme faaliyetlerinin veri sorumlusu <b>Armağan Kocabaş</b>'tır. İletişim: <a href="https://armagankocabas.com" target="_blank" rel="noopener">armagankocabas.com</a>.</p>
 
     <h2>2. Hangi Verileri Topluyoruz?</h2>
     <p>Sitedeki iletişim formunu (“Mülkünüzü Sat / Kirala — Ücretsiz Destek İste”) doldurduğunuzda yalnızca şu verileri toplarız:</p>
@@ -87,7 +93,7 @@
 
 <footer>
   <div class="wrap">
-    <p class="fnote">Parsel Tur · parseltur.com — © 2026 Armağan Kocabaş · RE/MAX Eksen · Lüks Gayrimenkul Uzmanı</p>
+    <p class="fnote">Parsel Tur · parseltur.com — © 2026 Parsel Tur</p>
   </div>
 </footer>
 

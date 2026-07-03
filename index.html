@@ -6,7 +6,8 @@
 <meta name="color-scheme" content="only light" />
 <meta name="google-site-verification" content="6Avpd7JI4WCGRJ4Oog9OIHw2NKKH-edtHVHRvax0Mi4" />
 <meta name="description" content="Parselini 3 boyutlu görüntüle, drone turu videosunu otomatik oluştur ve paylaş. Arsa ve arazi satışını hızlandır." />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%230d9488'/><text x='32' y='45' font-family='Arial' font-size='32' font-weight='bold' fill='white' text-anchor='middle'>PT</text></svg>" />
+<link rel="icon" type="image/png" href="logo-192.png" />
+<link rel="apple-touch-icon" href="logo-192.png" />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="Parsel Tur" />
 <meta property="og:title" content="Parsel Tur — Arsanı 3D drone videosuna çevir" />
@@ -16,7 +17,7 @@
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
 <meta name="twitter:card" content="summary_large_image" />
-<title>Parsel Tur · Armağan Kocabaş</title>
+<title>Parsel Tur · Arsanı 3D Drone Videosuna Çevir</title>
 
 <!-- Bağlantı ön-ısıtması (daha hızlı açılış) -->
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
@@ -132,16 +133,15 @@
 
 <div class="badge">🚁 <b>Parsel Tur</b> · uydu + 3D arazi modeli</div>
 <div id="recBadge">● Kaydediliyor…</div>
-<div id="ovPreview" class="bl"><img id="ovPreviewImg" alt="" /><div class="txt"><span class="nm" id="ovPreviewName">Armağan Kocabaş</span><span class="ph" id="ovPreviewPhone"></span></div></div>
+<div id="ovPreview" class="bl"><img id="ovPreviewImg" alt="" /><div class="txt"><span class="nm" id="ovPreviewName"></span><span class="ph" id="ovPreviewPhone"></span></div></div>
 
 <aside id="panel">
   <div class="brand">
     <div class="brand-row">
-      <img class="avatar brand-av" src="foto.jpg" alt="Armağan Kocabaş"
-           onerror="this.outerHTML='&lt;div class=\'avatar brand-av initials\'&gt;AK&lt;/div&gt;'" />
+      <img class="brand-av" src="logo.png" alt="Parsel Tur logosu" />
       <div>
         <div class="name">Parsel <b>Tur</b></div>
-        <div class="sub">Armağan Kocabaş · RE/MAX Eksen</div>
+        <div class="sub">Arsanı 3D drone videosuna çevir</div>
       </div>
     </div>
   </div>
@@ -198,7 +198,7 @@
     <div class="grp">
       <h3>Videoya Danışman Bilgisi</h3>
       <label class="fld">Danışman adı (videoya yazılır)</label>
-      <input type="text" id="ovName" placeholder="Örn. Armağan Kocabaş" value="Armağan Kocabaş" />
+      <input type="text" id="ovName" placeholder="Örn. Ad Soyad" value="" />
       <label class="fld">Telefon / not (isteğe bağlı)</label>
       <input type="text" id="ovPhone" placeholder="0532 000 00 00" />
       <label class="fld">Köşe</label>
@@ -238,7 +238,7 @@
       <button class="btn ghost" id="pasteBtn" style="margin-top:8px">Yapıştırılanı Yükle</button>
     </div>
 
-    <p class="copyr">Parsel Tur bağımsız bir araçtır; TKGM, Çevre ve Şehircilik Bakanlığı veya herhangi bir resmi kurumla bağlantılı/yetkili değildir. Yüklenen veriler kullanıcıya aittir ve kullanımından kullanıcı sorumludur. Buradaki 3 boyutlu görüntüler ve videolar yalnızca tanıtım ve bilgilendirme amaçlıdır; resmi ölçü, sınır, alan veya belge niteliği taşımaz. Resmi ve bağlayıcı bilgi için TKGM esastır.<br><a href="gizlilik.html" style="color:var(--gold-soft)">Gizlilik &amp; KVKK</a> · Parsel Tur · parseltur.com<br>Tüm hakları saklıdır © 2026 Armağan Kocabaş · RE/MAX Eksen · Lüks Gayrimenkul Uzmanı</p>
+    <p class="copyr">Parsel Tur bağımsız bir araçtır; TKGM, Çevre ve Şehircilik Bakanlığı veya herhangi bir resmi kurumla bağlantılı/yetkili değildir. Yüklenen veriler kullanıcıya aittir ve kullanımından kullanıcı sorumludur. Buradaki 3 boyutlu görüntüler ve videolar yalnızca tanıtım ve bilgilendirme amaçlıdır; resmi ölçü, sınır, alan veya belge niteliği taşımaz. Resmi ve bağlayıcı bilgi için TKGM esastır.<br><a href="gizlilik.html" style="color:var(--gold-soft)">Gizlilik &amp; KVKK</a> · Parsel Tur · parseltur.com<br>Tüm hakları saklıdır © 2026 Parsel Tur</p>
 
   </div>
 </aside>
@@ -251,12 +251,12 @@
   <div class="area" id="cardArea">— m²</div>
   <hr/>
   <div class="who-row">
-    <img class="avatar" src="foto.jpg" alt="Armağan Kocabaş"
-         onerror="this.outerHTML='&lt;div class=\'avatar initials\'&gt;AK&lt;/div&gt;'" />
+    <img class="avatar" id="cardAv" src="" alt="" style="display:none" />
+    <div class="avatar initials" id="cardAvPh">🏷️</div>
     <div>
-      <div class="who">Armağan Kocabaş</div>
-      <div class="role">Lüks Gayrimenkul Danışmanı · RE/MAX Eksen</div>
-      <div class="web">armagankocabas.com</div>
+      <div class="who" id="cardWho">Danışman kartınız</div>
+      <div class="role" id="cardRole">Adınızı soldan ekleyin, videoya işlensin</div>
+      <div class="web">parseltur.com</div>
     </div>
   </div>
 </div>
@@ -321,7 +321,7 @@
   .avatar{width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);flex-shrink:0}
   .avatar.initials{display:flex;align-items:center;justify-content:center;background:#eaf3f1;color:var(--gold);font-weight:700;font-size:17px;letter-spacing:1px}
   .brand-row{display:flex;align-items:center;gap:12px}
-  .brand-av{width:46px;height:46px}
+  .brand-av{width:46px;height:46px;border-radius:12px;object-fit:cover;background:#f7f9fb}
   .copyr{font-size:10.5px;color:var(--muted);text-align:center;line-height:1.5;margin-top:6px;padding-top:14px;border-top:1px solid var(--line)}
   #recBadge{display:none;position:absolute;left:50%;top:56px;transform:translateX(-50%);z-index:8;background:#e11d48;color:#fff;font-size:12.5px;font-weight:700;padding:7px 16px;border-radius:30px;box-shadow:0 6px 20px rgba(225,29,72,.45)}
 
@@ -757,6 +757,11 @@ function updateOverlayPreview(){
   ovPreview.style.color=textOn(ovBg.value);
   ovPreviewName.textContent=name;
   ovPreviewPhone.textContent=phone;
+  // Sağ alttaki kartı da güncelle
+  cardWho.textContent = name || 'Danışman kartınız';
+  cardRole.textContent = name ? (phone || 'Gayrimenkul Danışmanı') : 'Adınızı soldan ekleyin, videoya işlensin';
+  if(ovImgReady && ovPreviewImg.src){ cardAv.src=ovPreviewImg.src; cardAv.style.display='block'; cardAvPh.style.display='none'; }
+  else { cardAv.style.display='none'; cardAvPh.style.display='flex'; }
 }
 ovName.oninput=updateOverlayPreview; ovPhone.oninput=updateOverlayPreview;
 ovCorner.onchange=updateOverlayPreview; ovToggle.onchange=updateOverlayPreview;
@@ -787,7 +792,7 @@ leadSend.onclick = ()=>{
   const parsel = adaText.value.trim();
   const alan   = (cardArea.textContent||'').trim();
   const realParcel = hasParcel && parsel && parsel!=='Örnek Parsel';
-  let msg = `Merhaba Armağan Bey, mülkümü satmak veya kiralamak istiyorum, bu konuda bana destek olabilir misiniz?`;
+  let msg = `Merhaba, mülkümü satmak veya kiralamak istiyorum, bu konuda destek alabilir miyim?`;
   if(realParcel){
     msg += `\nParsel: ${parsel}`;
     if(alan && alan!=='— m²') msg += `\nAlan: ${alan}`;

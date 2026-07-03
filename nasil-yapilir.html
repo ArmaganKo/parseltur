@@ -4,8 +4,10 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="color-scheme" content="only light" />
+<meta name="theme-color" content="#f3f6f9" />
 <meta name="google-site-verification" content="6Avpd7JI4WCGRJ4Oog9OIHw2NKKH-edtHVHRvax0Mi4" />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%230d9488'/><text x='32' y='45' font-family='Arial' font-size='32' font-weight='bold' fill='white' text-anchor='middle'>PT</text></svg>" />
+<link rel="icon" type="image/png" href="logo-192.png" />
+<link rel="apple-touch-icon" href="logo-192.png" />
 <meta property="og:type" content="article" />
 <meta property="og:site_name" content="Parsel Tur" />
 <meta property="og:title" content="Nasıl Yapılır? · Parsel Tur" />
@@ -95,6 +97,10 @@
   @media(max-width:560px){
     .step{padding:16px}.hero{padding:44px 0 30px}
     .top-cta{padding:8px 13px}
+  }
+  /* Koyu mod zırhı: her koşulda açık tema */
+  @media (prefers-color-scheme: dark){
+    html,body{background:#f3f6f9 !important;color:#475467 !important}
   }
 </style>
 </head>
@@ -243,16 +249,7 @@
 
 <footer>
   <div class="wrap">
-    <div class="who">
-      <img class="av" src="foto.jpg" alt="Armağan Kocabaş"
-        onerror="this.outerHTML='&lt;div class=\'av\'&gt;AK&lt;/div&gt;'">
-      <div>
-        <div class="nm">Armağan Kocabaş</div>
-        <div class="rl">Lüks Gayrimenkul Danışmanı · RE/MAX Eksen</div>
-        <div class="web">armagankocabas.com</div>
-      </div>
-    </div>
-    <p class="fnote">Parsel Tur · parseltur.com — Tüm hakları saklıdır © 2026 Armağan Kocabaş · RE/MAX Eksen · Lüks Gayrimenkul Uzmanı<br>Parsel verileri TKGM Parsel Sorgu'dan alınır.</p>
+    <p class="fnote">Parsel Tur · parseltur.com — Tüm hakları saklıdır © 2026 Parsel Tur<br>Parsel Tur bağımsız bir araçtır; TKGM veya herhangi bir resmi kurumla bağlantılı değildir. Parsel verileri, kullanıcı tarafından TKGM Parsel Sorgu'dan indirilir.</p>
   </div>
 </footer>
 
