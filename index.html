@@ -238,7 +238,7 @@
       <button class="btn ghost" id="pasteBtn" style="margin-top:8px">Yapıştırılanı Yükle</button>
     </div>
 
-    <p class="copyr">Parsel Tur bağımsız bir araçtır; TKGM, Çevre ve Şehircilik Bakanlığı veya herhangi bir resmi kurumla bağlantılı/yetkili değildir. Yüklenen veriler kullanıcıya aittir ve kullanımından kullanıcı sorumludur. Buradaki 3 boyutlu görüntüler ve videolar yalnızca tanıtım ve bilgilendirme amaçlıdır; resmi ölçü, sınır, alan veya belge niteliği taşımaz. Resmi ve bağlayıcı bilgi için TKGM esastır.<br><a href="gizlilik.html" style="color:var(--gold-soft)">Gizlilik &amp; KVKK</a> · Parsel Tur · parseltur.com<br>Tüm hakları saklıdır © 2026 Parsel Tur</p>
+    <p class="copyr">Parsel Tur bağımsız bir araçtır; TKGM, Çevre ve Şehircilik Bakanlığı veya herhangi bir resmi kurumla bağlantılı/yetkili değildir. Yüklenen veriler kullanıcıya aittir ve kullanımından kullanıcı sorumludur. Buradaki 3 boyutlu görüntüler ve videolar yalnızca tanıtım ve bilgilendirme amaçlıdır; resmi ölçü, sınır, alan veya belge niteliği taşımaz. Resmi ve bağlayıcı bilgi için TKGM esastır.<br><a href="gizlilik.html" style="color:var(--gold-soft)">Gizlilik &amp; KVKK</a> · Parsel Tur · parseltur.com<br>Tüm hakları saklıdır © 2026 Armağan Kocabaş · Parsel Tur</p>
 
   </div>
 </aside>
@@ -269,16 +269,10 @@
     <button id="modalClose">✕</button>
     <div class="modal-tag">Parsel Tur</div>
     <h2>Mülkünüz için ücretsiz destek</h2>
-    <p class="modal-sub">Mülkünüzü <b>satmak veya kiralamak</b> istiyorsanız bilgilerinizi bırakın; profesyonel tanıtımını hazırlayıp en kısa sürede size ulaşayım.</p>
-    <label class="fld">Adınız Soyadınız</label>
-    <input type="text" id="leadName" placeholder="Örn. Ahmet Yılmaz" />
-    <label class="fld">Telefon</label>
-    <input type="tel" id="leadPhone" placeholder="05XX XXX XX XX" />
-    <label class="fld">Not (isteğe bağlı)</label>
-    <input type="text" id="leadNote" placeholder="Örn. acele satılık, imarlı" />
-    <label class="kvkk"><input type="checkbox" id="leadKvkk" /> <span><a href="gizlilik.html" target="_blank" rel="noopener">KVKK Aydınlatma Metni</a>'ni okudum; ad ve telefon bilgilerimin, talebime dönüş yapılması amacıyla işlenmesine ve WhatsApp üzerinden iletilmesine onay veriyorum.</span></label>
-    <button class="btn primary" id="leadSend" style="margin-top:14px">WhatsApp'tan Gönder</button>
-    <p class="hint" style="text-align:center">Bilgileriniz yalnızca size dönüş yapmak için kullanılır, üçüncü kişilerle paylaşılmaz.</p>
+    <p class="modal-sub">Mülkünüzü <b>satmak veya kiralamak</b> istiyorsanız, profesyonel tanıtımı ve satış süreci için iletişime geçin:</p>
+    <a class="btn primary" style="display:flex;justify-content:center;text-decoration:none;margin-top:6px" href="mailto:armagankocabas@gmail.com?subject=Parsel%20Tur%20%C3%BCzerinden%20m%C3%BClk%20deste%C4%9Fi&body=Merhaba%2C%20m%C3%BClk%C3%BCm%C3%BC%20satmak%2Fkiralamak%20istiyorum.">✉️ E-posta: armagankocabas@gmail.com</a>
+    <a class="btn ghost" style="display:flex;justify-content:center;text-decoration:none;margin-top:10px" href="https://www.instagram.com/rmx.armagankocabas/" target="_blank" rel="noopener">📸 Instagram: @rmx.armagankocabas</a>
+    <p class="hint" style="text-align:center;margin-top:12px">Bu site kişisel verilerinizi toplamaz; iletişim tamamen sizin tercihinizdedir.</p>
   </div>
 </div>
 
@@ -776,32 +770,10 @@ function updateCard(){ cardAda.textContent=adaText.value||'—'; }
 adaText.oninput=updateCard;
 cardToggle.onchange=()=>card.classList.toggle('hide',!cardToggle.checked);
 
-/* ---------- Lead yakalama (WhatsApp) ---------- */
-const WHATSAPP = "905079173358";
-
+/* ---------- İletişim penceresi ---------- */
 cta.onclick   = ()=> modal.classList.add('open');
 modalClose.onclick = ()=> modal.classList.remove('open');
 modal.onclick = e=>{ if(e.target===modal) modal.classList.remove('open'); };
-
-leadSend.onclick = ()=>{
-  const ad   = leadName.value.trim();
-  const tel  = leadPhone.value.trim();
-  const not  = leadNote.value.trim();
-  if(!ad || !tel){ alert('Lütfen ad ve telefon girin.'); return; }
-  if(!leadKvkk.checked){ alert('Devam etmek için KVKK aydınlatma onayını işaretleyin.'); return; }
-  const parsel = adaText.value.trim();
-  const alan   = (cardArea.textContent||'').trim();
-  const realParcel = hasParcel && parsel && parsel!=='Örnek Parsel';
-  let msg = `Merhaba, mülkümü satmak veya kiralamak istiyorum, bu konuda destek alabilir miyim?`;
-  if(realParcel){
-    msg += `\nParsel: ${parsel}`;
-    if(alan && alan!=='— m²') msg += `\nAlan: ${alan}`;
-  }
-  msg += `\nAdım: ${ad}\nTelefon: ${tel}`;
-  if(not) msg += `\nNot: ${not}`;
-  window.open(`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`,'_blank');
-  modal.classList.remove('open');
-};
 
 /* ---------- Panel aç/kapa ---------- */
 toggle.onclick=()=>panel.classList.toggle('closed');
