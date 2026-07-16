@@ -568,7 +568,10 @@ function orbit(){
     map.setZoom(Math.min(initialZoom + (progress * 0.6), 18));
   }
 
-  updateTrace(progress);
+  // Işın videodan önce tamamlansın: 15sn→5sn erken, 30sn→10sn, 57/90sn→15sn erken
+  const early = totalSeconds<=15 ? 5 : (totalSeconds<=30 ? 10 : 15);
+  const traceProgress = Math.min(elapsed / Math.max(totalSeconds - early, 1), 1);
+  updateTrace(traceProgress);
 
   raf=requestAnimationFrame(orbit); 
 }
