@@ -222,6 +222,7 @@
       <div class="inline" style="margin-top:6px"><span>Çizgi rengi</span><input type="color" id="lineColor" value="#ff4d6d" /></div>
       <label class="fld">Çizgi kalınlığı · <span id="lwVal">3px</span></label>
       <input type="range" id="lineWidth" min="1" max="8" step="0.5" value="3" />
+      <label class="switch" style="margin-top:10px"><input type="checkbox" id="traceChk" checked /> <span>✨ Lazer sınır çizimi (tur boyunca sınırı çizerek tamamlar)</span></label>
     </div>
 
     <div class="grp">
@@ -426,12 +427,48 @@ function loadParcel(geojson){
   if(map.getLayer('parcel-fill')) map.removeLayer('parcel-fill');
   if(map.getLayer('parcel-line')) map.removeLayer('parcel-line');
   if(map.getSource('parcel')) map.removeSource('parcel');
+  if(map.getLayer('trace-glow2')) map.removeLayer('trace-glow2');
+  if(map.getLayer('trace-glow')) map.removeLayer('trace-glow');
+  if(map.getLayer('trace-line')) map.removeLayer('trace-line');
+  if(map.getLayer('trace-core')) map.removeLayer('trace-core');
+  if(map.getSource('trace')) map.removeSource('trace');
 
   map.addSource('parcel',{type:'geojson',data:fc});
   map.addLayer({id:'parcel-fill',type:'fill',source:'parcel',
     paint:{'fill-color':fillColor.value,'fill-opacity':parseFloat(opacity.value)}});
   map.addLayer({id:'parcel-line',type:'line',source:'parcel',
     paint:{'line-color':lineColor.value,'line-width':parseFloat(lineWidth.value)}});
+
+  // Lazer çizim hazırlığı: her parselin dış sınırını çizgi olarak sakla
+  traceLines = [];
+  try{
+    fc.features.forEach(f=>{
+      if(!f.geometry) return;
+      const ln = turf.polygonToLine(f);
+      const feats = ln.type==='FeatureCollection' ? ln.features : [ln];
+      feats.forEach(l=>{
+        if(l.geometry.type==='MultiLineString'){
+          l.geometry.coordinates.forEach(c=>{
+            const single={type:'Feature',properties:{},geometry:{type:'LineString',coordinates:c}};
+            traceLines.push({line:single,len:turf.length(single)});
+          });
+        } else {
+          traceLines.push({line:l,len:turf.length(l)});
+        }
+      });
+    });
+  }catch(e){ traceLines=[]; }
+
+  map.addSource('trace',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+  const _lw = parseFloat(lineWidth.value);
+  map.addLayer({id:'trace-glow2',type:'line',source:'trace',
+    paint:{'line-color':lineColor.value,'line-width':_lw*7,'line-opacity':0.16,'line-blur':6}});
+  map.addLayer({id:'trace-glow',type:'line',source:'trace',
+    paint:{'line-color':lineColor.value,'line-width':_lw*3.4,'line-opacity':0.4,'line-blur':3}});
+  map.addLayer({id:'trace-line',type:'line',source:'trace',
+    paint:{'line-color':lineColor.value,'line-width':_lw*1.4,'line-opacity':0.95,'line-blur':0.8}});
+  map.addLayer({id:'trace-core',type:'line',source:'trace',
+    paint:{'line-color':'#ffffff','line-width':Math.max(_lw*0.5,1),'line-opacity':0.9,'line-blur':0.4}});
 
   hasParcel=true;
 
@@ -483,8 +520,21 @@ fitBtn.onclick=()=>{ if(map.getSource('parcel')) fitToParcel(map.getSource('parc
 
 fillColor.oninput=()=>{ if(map.getLayer('parcel-fill')) map.setPaintProperty('parcel-fill','fill-color',fillColor.value); };
 opacity.oninput=()=>{ opVal.textContent=parseFloat(opacity.value).toFixed(2); if(map.getLayer('parcel-fill')) map.setPaintProperty('parcel-fill','fill-opacity',parseFloat(opacity.value)); };
-lineColor.oninput=()=>{ if(map.getLayer('parcel-line')) map.setPaintProperty('parcel-line','line-color',lineColor.value); };
-lineWidth.oninput=()=>{ lwVal.textContent=lineWidth.value+'px'; if(map.getLayer('parcel-line')) map.setPaintProperty('parcel-line','line-width',parseFloat(lineWidth.value)); };
+lineColor.oninput=()=>{
+  if(map.getLayer('parcel-line')) map.setPaintProperty('parcel-line','line-color',lineColor.value);
+  ['trace-glow2','trace-glow','trace-line'].forEach(id=>{
+    if(map.getLayer(id)) map.setPaintProperty(id,'line-color',lineColor.value);
+  });
+};
+lineWidth.oninput=()=>{
+  lwVal.textContent=lineWidth.value+'px';
+  const w=parseFloat(lineWidth.value);
+  if(map.getLayer('parcel-line')) map.setPaintProperty('parcel-line','line-width',w);
+  if(map.getLayer('trace-glow2')) map.setPaintProperty('trace-glow2','line-width',w*7);
+  if(map.getLayer('trace-glow')) map.setPaintProperty('trace-glow','line-width',w*3.4);
+  if(map.getLayer('trace-line')) map.setPaintProperty('trace-line','line-width',w*1.4);
+  if(map.getLayer('trace-core')) map.setPaintProperty('trace-core','line-width',Math.max(w*0.5,1));
+};
 
 /* ---------- Yeni Nesil Sinematik Drone Turu ---------- */
 let orbiting=false,raf;
@@ -518,7 +568,38 @@ function orbit(){
     map.setZoom(Math.min(initialZoom + (progress * 0.6), 18));
   }
 
+  updateTrace(progress);
+
   raf=requestAnimationFrame(orbit); 
+}
+
+/* ---------- Lazer sınır çizimi ---------- */
+let traceLines = [];
+const TRACE_LAYERS = ['trace-glow2','trace-glow','trace-line','trace-core'];
+function setTraceVisible(on){
+  if(!map.getLayer('parcel-line')) return;
+  map.setPaintProperty('parcel-line','line-opacity', on?0:1);
+  TRACE_LAYERS.forEach(id=>{
+    if(map.getLayer(id)) map.setLayoutProperty(id,'visibility', on?'visible':'none');
+  });
+}
+function updateTrace(progress){
+  if(!traceChk.checked || !traceLines.length || !map.getSource('trace')) return;
+  const p = Math.min(Math.max(progress,0.0001),1);
+  // dolgu da sıfırdan görünür hale gelsin (video boyunca yavaşça)
+  if(map.getLayer('parcel-fill')) map.setPaintProperty('parcel-fill','fill-opacity', parseFloat(opacity.value)*p);
+  const feats=[];
+  traceLines.forEach(t=>{
+    try{
+      feats.push(turf.lineSliceAlong(t.line, 0, Math.max(t.len*p, 0.0005)));
+    }catch(e){}
+  });
+  map.getSource('trace').setData({type:'FeatureCollection',features:feats});
+}
+function resetTrace(){
+  if(map.getSource('trace')) map.getSource('trace').setData({type:'FeatureCollection',features:[]});
+  if(map.getLayer('parcel-fill')) map.setPaintProperty('parcel-fill','fill-opacity', parseFloat(opacity.value));
+  setTraceVisible(false);
 }
 
 orbitBtn.onclick=()=>{
@@ -529,10 +610,15 @@ orbitBtn.onclick=()=>{
     startBearing = map.getBearing();
     initialZoom = map.getZoom();
     initialPitch = Math.max(parseFloat(pitch.value),65);
+    if(traceChk.checked && traceLines.length){
+      setTraceVisible(true);
+      if(map.getLayer('parcel-fill')) map.setPaintProperty('parcel-fill','fill-opacity',0);
+      updateTrace(0);
+    }
     map.easeTo({pitch:initialPitch,duration:600}); 
     orbit(); 
   }
-  else cancelAnimationFrame(raf);
+  else { cancelAnimationFrame(raf); resetTrace(); }
 };
 
 /* ---------- Videoya gömülen danışman etiketi ---------- */
