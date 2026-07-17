@@ -226,6 +226,16 @@
     </div>
 
     <div class="grp">
+      <h3>3b · Hisse / Bölüm Vurgulama</h3>
+      <p class="hint" style="margin-top:0">Parselin içinde bir bölümü (örn. hisseye karşılık gelen fiilî kısmı) elle çizip farklı renkte vurgula. Haritaya <b>tıklayarak köşe ekle</b>, <b>çift tıkla bitir</b>.</p>
+      <div class="inline"><span>Vurgu rengi</span><input type="color" id="hlColor" value="#f59e0b" /></div>
+      <button class="btn ghost" id="hlDraw" style="margin-top:8px">✏️ Bölüm Çiz</button>
+      <button class="btn ghost" id="hlClear" style="margin-top:8px">🗑 Vurguyu Temizle</button>
+      <p class="hint" id="hlInfo" style="display:none"></p>
+      <p class="hint" style="opacity:.8">Not: Hisse konumu temsilîdir; hisseli mülkiyette pay, resmî olarak parselin tamamına aittir. Bu vurgu resmî sınır değildir.</p>
+    </div>
+
+    <div class="grp">
       <h3>4 · Pazarlama Kartı</h3>
       <label class="switch"><input type="checkbox" id="cardToggle" checked /> Kartı göster</label>
       <label class="fld">Ada / Parsel etiketi</label>
@@ -579,10 +589,16 @@ function orbit(){
 /* ---------- Lazer sınır çizimi ---------- */
 let traceLines = [];
 const TRACE_LAYERS = ['trace-glow2','trace-glow','trace-line','trace-core'];
+const HLTRACE_LAYERS = ['hltrace-glow2','hltrace-glow','hltrace-line','hltrace-core'];
 function setTraceVisible(on){
   if(!map.getLayer('parcel-line')) return;
   map.setPaintProperty('parcel-line','line-opacity', on?0:1);
   TRACE_LAYERS.forEach(id=>{
+    if(map.getLayer(id)) map.setLayoutProperty(id,'visibility', on?'visible':'none');
+  });
+  // vurgu (hisse) bölümü de aynı şekilde
+  if(map.getLayer('hl-line')) map.setPaintProperty('hl-line','line-opacity', on?0:1);
+  HLTRACE_LAYERS.forEach(id=>{
     if(map.getLayer(id)) map.setLayoutProperty(id,'visibility', on?'visible':'none');
   });
 }
@@ -598,10 +614,21 @@ function updateTrace(progress){
     }catch(e){}
   });
   map.getSource('trace').setData({type:'FeatureCollection',features:feats});
+  // vurgu bölümü de ışınla çizilsin + dolgusu belirsin
+  if(hlTraceLines.length && map.getSource('hltrace')){
+    if(map.getLayer('hl-fill')) map.setPaintProperty('hl-fill','fill-opacity', 0.45*p);
+    const hf=[];
+    hlTraceLines.forEach(t=>{
+      try{ hf.push(turf.lineSliceAlong(t.line, 0, Math.max(t.len*p, 0.0005))); }catch(e){}
+    });
+    map.getSource('hltrace').setData({type:'FeatureCollection',features:hf});
+  }
 }
 function resetTrace(){
   if(map.getSource('trace')) map.getSource('trace').setData({type:'FeatureCollection',features:[]});
   if(map.getLayer('parcel-fill')) map.setPaintProperty('parcel-fill','fill-opacity', parseFloat(opacity.value));
+  if(map.getSource('hltrace')) map.getSource('hltrace').setData({type:'FeatureCollection',features:[]});
+  if(map.getLayer('hl-fill')) map.setPaintProperty('hl-fill','fill-opacity', 0.45);
   setTraceVisible(false);
 }
 
@@ -886,6 +913,110 @@ toggle.onclick=()=>panel.classList.toggle('closed');
 </div>
 
 <script>
+/* ---------- Hisse / Bölüm Vurgulama (elle çizim) ---------- */
+let hlDrawing=false, hlPts=[], hlTraceLines=[];
+function hlEnsureLayers(){
+  if(!map.getSource('hl')){
+    map.addSource('hl',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+    map.addLayer({id:'hl-fill',type:'fill',source:'hl',
+      paint:{'fill-color':hlColor.value,'fill-opacity':0.45}});
+    map.addLayer({id:'hl-line',type:'line',source:'hl',
+      paint:{'line-color':hlColor.value,'line-width':3,'line-dasharray':[2,1.2]}});
+  }
+  if(!map.getSource('hltrace')){
+    map.addSource('hltrace',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+    map.addLayer({id:'hltrace-glow2',type:'line',source:'hltrace',
+      paint:{'line-color':hlColor.value,'line-width':21,'line-opacity':0.16,'line-blur':6}});
+    map.addLayer({id:'hltrace-glow',type:'line',source:'hltrace',
+      paint:{'line-color':hlColor.value,'line-width':10,'line-opacity':0.4,'line-blur':3}});
+    map.addLayer({id:'hltrace-line',type:'line',source:'hltrace',
+      paint:{'line-color':hlColor.value,'line-width':4.2,'line-opacity':0.95,'line-blur':0.8}});
+    map.addLayer({id:'hltrace-core',type:'line',source:'hltrace',
+      paint:{'line-color':'#ffffff','line-width':1.6,'line-opacity':0.9,'line-blur':0.4}});
+  }
+  if(!map.getSource('hlTrace')){
+    map.addSource('hlTrace',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+    const w=3;
+    map.addLayer({id:'hlTrace-glow2',type:'line',source:'hlTrace',
+      paint:{'line-color':hlColor.value,'line-width':w*7,'line-opacity':0.16,'line-blur':6}});
+    map.addLayer({id:'hlTrace-glow',type:'line',source:'hlTrace',
+      paint:{'line-color':hlColor.value,'line-width':w*3.4,'line-opacity':0.4,'line-blur':3}});
+    map.addLayer({id:'hlTrace-line',type:'line',source:'hlTrace',
+      paint:{'line-color':hlColor.value,'line-width':w*1.4,'line-opacity':0.95,'line-blur':0.8}});
+    map.addLayer({id:'hlTrace-core',type:'line',source:'hlTrace',
+      paint:{'line-color':'#ffffff','line-width':1.5,'line-opacity':0.9,'line-blur':0.4}});
+  }
+  if(!map.getSource('hlTemp')){
+    map.addSource('hlTemp',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+    map.addLayer({id:'hlTemp-line',type:'line',source:'hlTemp',
+      paint:{'line-color':hlColor.value,'line-width':2.5,'line-dasharray':[1.5,1.5]}});
+    map.addLayer({id:'hlTemp-pts',type:'circle',source:'hlTemp',
+      paint:{'circle-radius':4.5,'circle-color':'#ffffff','circle-stroke-color':hlColor.value,'circle-stroke-width':2.5}});
+  }
+}
+function hlTempUpdate(){
+  if(!map.getSource('hlTemp')) return;
+  const feats = hlPts.map(c=>({type:'Feature',properties:{},geometry:{type:'Point',coordinates:c}}));
+  if(hlPts.length>1) feats.push({type:'Feature',properties:{},geometry:{type:'LineString',coordinates:hlPts}});
+  map.getSource('hlTemp').setData({type:'FeatureCollection',features:feats});
+}
+function hlFinish(){
+  if(hlPts.length>=3){
+    const ring=[...hlPts, hlPts[0]];
+    const poly={type:'Feature',properties:{},geometry:{type:'Polygon',coordinates:[ring]}};
+    map.getSource('hl').setData({type:'FeatureCollection',features:[poly]});
+    hlTraceLines=[];
+    try{
+      const ln=turf.polygonToLine(poly);
+      const l = ln.type==='FeatureCollection' ? ln.features[0] : ln;
+      hlTraceLines.push({line:l,len:turf.length(l)});
+    }catch(e){}
+    try{
+      const m2=turf.area(poly);
+      hlInfo.style.display='block';
+      hlInfo.innerHTML='Vurgulanan bölüm: <b>'+ (m2>=10000 ? (m2/10000).toFixed(2)+' dönüm ('+Math.round(m2).toLocaleString('tr-TR')+' m²)' : Math.round(m2).toLocaleString('tr-TR')+' m²') +'</b> · temsilîdir';
+    }catch(e){}
+  }
+  hlDrawing=false; hlPts=[];
+  hlTempUpdate();
+  hlDraw.textContent='✏️ Bölüm Çiz';
+  map.getCanvas().style.cursor='';
+  map.doubleClickZoom.enable();
+}
+hlDraw.onclick=()=>{
+  if(!hasParcel){ alert('Önce bir parsel yükle.'); return; }
+  hlEnsureLayers();
+  if(hlDrawing){ hlFinish(); return; }
+  hlDrawing=true; hlPts=[];
+  hlDraw.textContent='✔ Çizimi Bitir (veya çift tıkla)';
+  map.getCanvas().style.cursor='crosshair';
+  map.doubleClickZoom.disable();
+};
+hlClear.onclick=()=>{
+  hlDrawing=false; hlPts=[]; hlTraceLines=[]; hlTempUpdate();
+  if(map.getSource('hl')) map.getSource('hl').setData({type:'FeatureCollection',features:[]});
+  if(map.getSource('hltrace')) map.getSource('hltrace').setData({type:'FeatureCollection',features:[]});
+  hlInfo.style.display='none';
+  hlDraw.textContent='✏️ Bölüm Çiz';
+  map.getCanvas().style.cursor='';
+  map.doubleClickZoom.enable();
+};
+map.on('click', e=>{
+  if(!hlDrawing) return;
+  hlPts.push([e.lngLat.lng, e.lngLat.lat]);
+  hlTempUpdate();
+});
+map.on('dblclick', e=>{
+  if(!hlDrawing) return;
+  e.preventDefault();
+  hlFinish();
+});
+hlColor.oninput=()=>{
+  ['hl-fill'].forEach(id=>{ if(map.getLayer(id)) map.setPaintProperty(id,'fill-color',hlColor.value); });
+  ['hl-line','hlTemp-line','hltrace-glow2','hltrace-glow','hltrace-line'].forEach(id=>{ if(map.getLayer(id)) map.setPaintProperty(id,'line-color',hlColor.value); });
+  if(map.getLayer('hlTemp-pts')) map.setPaintProperty('hlTemp-pts','circle-stroke-color',hlColor.value);
+};
+
 /* ---------- Mobil yönlendirme + ilk kullanım ipucu ---------- */
 (function(){
   var isMobile = window.matchMedia('(max-width: 820px)').matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
