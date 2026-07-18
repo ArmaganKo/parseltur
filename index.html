@@ -137,13 +137,13 @@
 
 <aside id="panel">
   <div class="brand">
-    <div class="brand-row">
+    <a class="brand-row" href="/" title="Ana sayfa" style="text-decoration:none;cursor:pointer">
       <img class="brand-av" src="logo.png" alt="Parsel Tur logosu" />
       <div>
         <div class="name">Parsel <b>Tur</b></div>
         <div class="sub">Arsanı 3D drone videosuna çevir</div>
       </div>
-    </div>
+    </a>
   </div>
   <div class="scroll">
 
@@ -325,7 +325,8 @@
   .who-row{display:flex;align-items:center;gap:12px}
   .avatar{width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);flex-shrink:0}
   .avatar.initials{display:flex;align-items:center;justify-content:center;background:#eaf3f1;color:var(--gold);font-weight:700;font-size:17px;letter-spacing:1px}
-  .brand-row{display:flex;align-items:center;gap:12px}
+  .brand-row{display:flex;align-items:center;gap:12px;color:inherit}
+  a.brand-row:hover .name{opacity:.85}
   .brand-av{width:46px;height:46px;object-fit:contain}
   .copyr{font-size:10.5px;color:var(--muted);text-align:center;line-height:1.5;margin-top:6px;padding-top:14px;border-top:1px solid var(--line)}
   #recBadge{display:none;position:absolute;left:50%;top:56px;transform:translateX(-50%);z-index:8;background:#e11d48;color:#fff;font-size:12.5px;font-weight:700;padding:7px 16px;border-radius:30px;box-shadow:0 6px 20px rgba(225,29,72,.45)}
@@ -370,6 +371,7 @@ try{ document.body.classList.add('loaded'); }catch(e){}
 const map = new maplibregl.Map({
   container:'map',
   preserveDrawingBuffer:true,
+  pixelRatio: Math.max(window.devicePixelRatio||1, 2),
   maxPitch:85,
   pitch:65,
   bearing:-20,
@@ -381,7 +383,7 @@ const map = new maplibregl.Map({
       satellite:{
         type:'raster',
         tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-        tileSize:256, maxzoom:17,
+        tileSize:256, maxzoom:18,
         attribution:'Görüntü © Esri'
       },
       terrain:{
@@ -765,7 +767,7 @@ function startRecording(restore){
   const ext = mime.indexOf('mp4')>-1 ? 'mp4' : 'webm';
   const outType = ext==='mp4' ? 'video/mp4' : 'video/webm';
 
-  try{ mediaRec = new MediaRecorder(stream, mime ? {mimeType:mime,videoBitsPerSecond:8000000} : {videoBitsPerSecond:8000000}); }
+  try{ mediaRec = new MediaRecorder(stream, mime ? {mimeType:mime,videoBitsPerSecond:16000000} : {videoBitsPerSecond:16000000}); }
   catch(e){ fail('Kayıt başlatılamadı. Ekran kaydını kullan.'); return; }
 
   recChunks=[];
