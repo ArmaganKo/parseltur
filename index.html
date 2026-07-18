@@ -567,15 +567,19 @@ function orbit(){
   map.setBearing(startBearing + elapsed * DEG_PER_SEC);
 
   if (mode === 'helix') {
-    // dönerek uzaklaş + yüksel
+    // dönerek uzaklaş + yüksel (zaten geniş biter)
     map.setZoom(initialZoom - (progress * 1.3));
-    map.setPitch(initialPitch - (progress * 14));
+    map.setPitch(Math.max(initialPitch - (progress * 18), 45));
   } else if (mode === 'dive') {
-    // dönerek belirgin şekilde yakınlaş (uydu sınırını aşma)
-    map.setZoom(Math.min(initialZoom + (progress * 1.6), 18));
+    // önce yaklaşır sonra geri açılır: video parseli ve çevresini görerek biter
+    const dz = Math.sin(progress * Math.PI) * 0.9;   // ortada +0.9, başta/sonda 0
+    map.setZoom(Math.min(initialZoom + dz, initialZoom + 0.9));
+    map.setPitch(Math.max(initialPitch - (progress * 10), 52));
   } else {
-    // klasik dönüş — yavaşça hafifçe yakınlaş
-    map.setZoom(Math.min(initialZoom + (progress * 0.6), 18));
+    // klasik dönüş — çok hafif yakınlaş, sonra düzelt; hep yukarıdan bakar
+    const dz = Math.sin(progress * Math.PI) * 0.4;   // en fazla +0.4, sonda 0'a döner
+    map.setZoom(initialZoom + dz);
+    map.setPitch(Math.max(initialPitch - (progress * 6), 54));
   }
 
   // Işın videodan önce tamamlansın: 15sn→5sn erken, 30sn→10sn, 57/90sn→15sn erken
@@ -639,7 +643,7 @@ orbitBtn.onclick=()=>{
     tourStart = Date.now();
     startBearing = map.getBearing();
     initialZoom = map.getZoom();
-    initialPitch = Math.max(parseFloat(pitch.value),65);
+    initialPitch = Math.min(Math.max(parseFloat(pitch.value),58),68);
     if(traceChk.checked && traceLines.length){
       setTraceVisible(true);
       if(map.getLayer('parcel-fill')) map.setPaintProperty('parcel-fill','fill-opacity',0);
