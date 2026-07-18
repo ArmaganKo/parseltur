@@ -496,8 +496,13 @@ function loadParcel(geojson){
 function fitToParcel(fc){
   try{
     const bbox = turf.bbox(fc);
+    // Formata göre çerçeve payı: dikeyde parselin sığması için daha fazla boşluk
+    const r = (typeof ratioSel!=='undefined' && ratioSel.value) ? ratioSel.value : '16:9';
+    const pad = r==='9:16' ? {top:150,bottom:150,left:90,right:90}
+              : r==='1:1'  ? {top:110,bottom:110,left:110,right:110}
+              : {top:70,bottom:70,left:120,right:120};
     map.fitBounds([[bbox[0],bbox[1]],[bbox[2],bbox[3]]],
-      {padding:55,maxZoom:17.5,pitch:parseFloat(pitch.value),bearing:map.getBearing(),duration:1400});
+      {padding:pad,maxZoom:17.3,pitch:parseFloat(pitch.value),bearing:map.getBearing(),duration:1400});
   }catch(e){}
 }
 
@@ -729,8 +734,8 @@ recordBtn.onclick=()=>{
   recBadge.style.display='block';
   recBadge.textContent='● Hazırlanıyor…';
 
-  // çerçeve oturana kadar bekle, sonra kaydı başlat
-  setTimeout(()=>startRecording(restore), 1000);
+  // çerçeve tam otursun diye fit animasyonundan (1400ms) sonra başlat
+  setTimeout(()=>startRecording(restore), 1600);
 };
 
 function startRecording(restore){
