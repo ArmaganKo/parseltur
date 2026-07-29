@@ -236,6 +236,22 @@
     </div>
 
     <div class="grp">
+      <h3>3c · Yakındaki Ana Yollar</h3>
+      <p class="hint" style="margin-top:0">Parselin çevresindeki ana yolları saydam ışıklı bant olarak göster. Yollar da video boyunca ilerleyerek çizilir.</p>
+      <label class="switch"><input type="checkbox" id="roadChk" /> <span>🛣 Ana yolları göster</span></label>
+      <label class="fld">Arama yarıçapı</label>
+      <select id="roadRadius">
+        <option value="600">600 m (yakın çevre)</option>
+        <option value="1200" selected>1,2 km (önerilen)</option>
+        <option value="2500">2,5 km (geniş)</option>
+      </select>
+      <div class="inline" style="margin-top:8px"><span>Yol rengi</span><input type="color" id="roadColor" value="#38bdf8" /></div>
+      <button class="btn ghost" id="roadLoad" style="margin-top:8px">🔄 Yolları Getir / Yenile</button>
+      <p class="hint" id="roadInfo" style="display:none"></p>
+      <p class="hint" style="opacity:.8">Yol verisi OpenStreetMap'ten alınır. Konum ve güzergâhlar temsilîdir.</p>
+    </div>
+
+    <div class="grp">
       <h3>4 · Pazarlama Kartı</h3>
       <label class="switch"><input type="checkbox" id="cardToggle" checked /> Kartı göster</label>
       <label class="fld">Ada / Parsel etiketi</label>
@@ -593,6 +609,7 @@ function orbit(){
   const early = totalSeconds<=15 ? 5 : (totalSeconds<=30 ? 10 : 15);
   const traceProgress = Math.min(elapsed / Math.max(totalSeconds - early, 1), 1);
   updateTrace(traceProgress);
+  updateRoads(traceProgress);
 
   raf=requestAnimationFrame(orbit); 
 }
@@ -641,6 +658,7 @@ function resetTrace(){
   if(map.getSource('hltrace')) map.getSource('hltrace').setData({type:'FeatureCollection',features:[]});
   if(map.getLayer('hl-fill')) map.setPaintProperty('hl-fill','fill-opacity', 0.45);
   setTraceVisible(false);
+  resetRoads();
 }
 
 orbitBtn.onclick=()=>{
@@ -655,6 +673,10 @@ orbitBtn.onclick=()=>{
       setTraceVisible(true);
       if(map.getLayer('parcel-fill')) map.setPaintProperty('parcel-fill','fill-opacity',0);
       updateTrace(0);
+    }
+    if(roadChk.checked && roadLines.length && map.getSource('roads')){
+      map.getSource('roads').setData({type:'FeatureCollection',features:[]});
+      roadLastUpd = 0; updateRoads(0);
     }
     map.easeTo({pitch:initialPitch,duration:600}); 
     orbit(); 
@@ -924,6 +946,114 @@ toggle.onclick=()=>panel.classList.toggle('closed');
 </div>
 
 <script>
+/* ---------- Yakındaki ana yollar (OpenStreetMap / Overpass) ---------- */
+let roadLines = [], roadBusy = false;
+
+function roadEnsureLayers(){
+  if(map.getSource('roads')) return;
+  map.addSource('roads',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+  const before = map.getLayer('parcel-fill') ? 'parcel-fill' : undefined;
+  // geniş yumuşak hale
+  map.addLayer({id:'road-glow',type:'line',source:'roads',
+    layout:{'line-cap':'round','line-join':'round'},
+    paint:{'line-color':roadColor.value,'line-width':26,'line-opacity':0.18,'line-blur':10}}, before);
+  // saydam bant (yolun içi)
+  map.addLayer({id:'road-band',type:'line',source:'roads',
+    layout:{'line-cap':'round','line-join':'round'},
+    paint:{'line-color':roadColor.value,'line-width':13,'line-opacity':0.42,'line-blur':1.5}}, before);
+  // parlak çekirdek
+  map.addLayer({id:'road-core',type:'line',source:'roads',
+    layout:{'line-cap':'round','line-join':'round'},
+    paint:{'line-color':'#ffffff','line-width':2.2,'line-opacity':0.75,'line-blur':0.6}}, before);
+}
+const ROAD_LAYERS = ['road-glow','road-band','road-core'];
+
+async function fetchRoads(){
+  if(!hasParcel){ alert('Önce bir parsel yükle.'); return; }
+  if(roadBusy) return;
+  roadBusy = true;
+  roadInfo.style.display='block';
+  roadInfo.textContent='Yollar getiriliyor…';
+  try{
+    const c = turf.center(map.getSource('parcel')._data).geometry.coordinates;
+    const r = parseInt(roadRadius.value,10) || 1200;
+    const q = `[out:json][timeout:25];way["highway"~"^(motorway|trunk|primary|secondary|tertiary)$"](around:${r},${c[1]},${c[0]});out geom;`;
+    const endpoints = ['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
+    let data=null, lastErr=null;
+    for(const url of endpoints){
+      try{
+        const res = await fetch(url,{method:'POST',body:'data='+encodeURIComponent(q),
+          headers:{'Content-Type':'application/x-www-form-urlencoded'}});
+        if(!res.ok) throw new Error('HTTP '+res.status);
+        data = await res.json(); break;
+      }catch(err){ lastErr=err; }
+    }
+    if(!data) throw lastErr || new Error('bağlantı yok');
+
+    const feats=[];
+    (data.elements||[]).forEach(el=>{
+      if(el.type==='way' && el.geometry && el.geometry.length>1){
+        feats.push({type:'Feature',
+          properties:{name: el.tags && (el.tags.ref||el.tags.name) || ''},
+          geometry:{type:'LineString',coordinates: el.geometry.map(p=>[p.lon,p.lat])}});
+      }
+    });
+    if(!feats.length){
+      roadInfo.textContent='Bu yarıçapta ana yol bulunamadı. Yarıçapı büyütmeyi dene.';
+      roadLines=[]; roadBusy=false; return;
+    }
+    // en uzun 14 yolu al (performans)
+    roadLines = feats.map(f=>{ let len=0; try{ len=turf.length(f); }catch(e){} return {line:f,len}; })
+                     .filter(t=>t.len>0).sort((a,b)=>b.len-a.len).slice(0,14);
+
+    roadEnsureLayers();
+    roadChk.checked = true;
+    setRoadVisible(true);
+    // tur çalışmıyorsa tamamını göster
+    if(!orbiting) map.getSource('roads').setData({type:'FeatureCollection',features:roadLines.map(t=>t.line)});
+    const names=[...new Set(roadLines.map(t=>t.line.properties.name).filter(Boolean))].slice(0,4);
+    roadInfo.innerHTML = roadLines.length+' yol bulundu'+(names.length? ' · '+names.join(', ') : '');
+  }catch(e){
+    roadInfo.textContent='Yollar getirilemedi (servis meşgul olabilir). Birazdan tekrar dene.';
+  }
+  roadBusy=false;
+}
+
+function setRoadVisible(on){
+  ROAD_LAYERS.forEach(id=>{
+    if(map.getLayer(id)) map.setLayoutProperty(id,'visibility', (on && roadChk.checked) ? 'visible':'none');
+  });
+}
+let roadLastUpd = 0;
+function updateRoads(progress){
+  if(!roadChk.checked || !roadLines.length || !map.getSource('roads')) return;
+  const now = Date.now();
+  if(now - roadLastUpd < 70) return;   // performans için kare atla
+  roadLastUpd = now;
+  const p = Math.min(Math.max(progress,0.0001),1);
+  const feats=[];
+  roadLines.forEach(t=>{
+    try{ feats.push(turf.lineSliceAlong(t.line, 0, Math.max(t.len*p,0.0005))); }catch(e){}
+  });
+  map.getSource('roads').setData({type:'FeatureCollection',features:feats});
+}
+function resetRoads(){
+  if(!map.getSource('roads')) return;
+  map.getSource('roads').setData({type:'FeatureCollection',features: roadChk.checked ? roadLines.map(t=>t.line) : []});
+  setRoadVisible(true);
+}
+
+roadLoad.onclick = fetchRoads;
+roadChk.onchange = ()=>{
+  if(roadChk.checked && !roadLines.length){ fetchRoads(); return; }
+  setRoadVisible(true);
+  if(!orbiting) resetRoads();
+};
+roadColor.oninput = ()=>{
+  if(map.getLayer('road-glow')) map.setPaintProperty('road-glow','line-color',roadColor.value);
+  if(map.getLayer('road-band')) map.setPaintProperty('road-band','line-color',roadColor.value);
+};
+
 /* ---------- Hisse / Bölüm Vurgulama (elle çizim) ---------- */
 let hlDrawing=false, hlPts=[], hlTraceLines=[];
 function hlEnsureLayers(){
