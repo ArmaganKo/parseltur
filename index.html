@@ -248,7 +248,7 @@
       <div class="inline" style="margin-top:8px"><span>Yol rengi</span><input type="color" id="roadColor" value="#38bdf8" /></div>
       <button class="btn ghost" id="roadLoad" style="margin-top:8px">🔄 Yolları Getir / Yenile</button>
       <p class="hint" id="roadInfo" style="display:none"></p>
-      <p class="hint" style="opacity:.8">Yol verisi OpenStreetMap'ten alınır. Konum ve güzergâhlar temsilîdir.</p>
+      <p class="hint" style="opacity:.8">Yol verisi © OpenStreetMap katkıcıları (ODbL lisansı). Konum ve güzergâhlar temsilîdir; resmî yol projesi değildir.</p>
     </div>
 
     <div class="grp">
@@ -951,7 +951,8 @@ let roadLines = [], roadBusy = false;
 
 function roadEnsureLayers(){
   if(map.getSource('roads')) return;
-  map.addSource('roads',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+  map.addSource('roads',{type:'geojson',data:{type:'FeatureCollection',features:[]},
+    attribution:'Yollar © OpenStreetMap katkıcıları (ODbL)'});
   const before = map.getLayer('parcel-fill') ? 'parcel-fill' : undefined;
   // geniş yumuşak hale
   map.addLayer({id:'road-glow',type:'line',source:'roads',
@@ -977,16 +978,39 @@ async function fetchRoads(){
   try{
     const c = turf.center(map.getSource('parcel')._data).geometry.coordinates;
     const r = parseInt(roadRadius.value,10) || 1200;
-    const q = `[out:json][timeout:25];way["highway"~"^(motorway|trunk|primary|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link)$"](around:${r},${c[1]},${c[0]});out geom;`;
-    const endpoints = ['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
-    let data=null, lastErr=null;
+    const q = `[out:json][timeout:20];way["highway"~"^(motorway|trunk|primary|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link)$"](around:${r},${c[1]},${c[0]});out geom;`;
+    const endpoints = [
+      'https://overpass-api.de/api/interpreter',
+      'https://overpass.kumi.systems/api/interpreter',
+      'https://overpass.private.coffee/api/interpreter',
+      'https://maps.mail.ru/osm/tools/overpass/api/interpreter'
+    ];
+    let data=null, lastErr=null, tried=0;
     for(const url of endpoints){
+      tried++;
+      roadInfo.textContent='Yollar getiriliyor… ('+tried+'/'+endpoints.length+' sunucu deneniyor)';
+      // her sunucuya en fazla 15 sn şans ver, takılıp kalmasın
+      const ctrl = new AbortController();
+      const timer = setTimeout(()=>ctrl.abort(), 15000);
       try{
-        const res = await fetch(url,{method:'POST',body:'data='+encodeURIComponent(q),
-          headers:{'Content-Type':'application/x-www-form-urlencoded'}});
+        let res = await fetch(url,{method:'POST',body:'data='+encodeURIComponent(q),
+          headers:{'Content-Type':'application/x-www-form-urlencoded'}, signal:ctrl.signal});
         if(!res.ok) throw new Error('HTTP '+res.status);
-        data = await res.json(); break;
-      }catch(err){ lastErr=err; }
+        data = await res.json();
+        clearTimeout(timer);
+        if(data) break;
+      }catch(err){
+        clearTimeout(timer);
+        lastErr=err;
+        // POST olmadıysa aynı sunucuda GET dene
+        try{
+          const ctrl2 = new AbortController();
+          const t2 = setTimeout(()=>ctrl2.abort(), 15000);
+          const res2 = await fetch(url+'?data='+encodeURIComponent(q), {signal:ctrl2.signal});
+          clearTimeout(t2);
+          if(res2.ok){ data = await res2.json(); if(data) break; }
+        }catch(err2){ lastErr=err2; }
+      }
     }
     if(!data) throw lastErr || new Error('bağlantı yok');
 
@@ -1022,7 +1046,7 @@ async function fetchRoads(){
     const names=[...new Set(roadLines.map(t=>t.line.properties.name).filter(Boolean))].slice(0,4);
     roadInfo.innerHTML = roadLines.length+' yol bulundu'+(names.length? ' · '+names.join(', ') : '');
   }catch(e){
-    roadInfo.textContent='Yollar getirilemedi (servis meşgul olabilir). Birazdan tekrar dene.';
+    roadInfo.innerHTML='Yollar getirilemedi. Tüm sunucular meşgul olabilir — birkaç dakika sonra <b>Yolları Getir</b>e tekrar bas. (Yarıçapı küçültmek de hızlandırır.)';
   }
   roadBusy=false;
 }
