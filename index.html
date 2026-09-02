@@ -387,7 +387,7 @@ try{ document.body.classList.add('loaded'); }catch(e){}
 const map = new maplibregl.Map({
   container:'map',
   preserveDrawingBuffer:true,
-  pixelRatio: Math.max(window.devicePixelRatio||1, 2),
+  pixelRatio: Math.min(window.devicePixelRatio||1, 2),
   maxPitch:85,
   pitch:65,
   bearing:-20,
@@ -414,6 +414,12 @@ const map = new maplibregl.Map({
   }
 });
 map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
+try{
+  map.getCanvas().addEventListener('webglcontextlost', e=>{
+    e.preventDefault();
+    alert('Görüntü motoru belleği doldu (harita siyah kalabilir). Sayfayı yenileyip tekrar deneyin; diğer sekmeleri kapatmak da yardımcı olur.');
+  }, false);
+}catch(e){}
 map.addControl(new maplibregl.FullscreenControl(),'top-right');
 
 let hasParcel=false;
@@ -441,9 +447,38 @@ window.addEventListener('error',e=>console.warn('yakalandı:',e.message));
 
 /* ---------- GeoJSON normalize + yükle ---------- */
 function toFeatureCollection(data){
-  if(data.type==='FeatureCollection') return data;
-  if(data.type==='Feature') return {type:'FeatureCollection',features:[data]};
-  return {type:'FeatureCollection',features:[{type:'Feature',properties:{},geometry:data}]};
+  let fc;
+  if(data.type==='FeatureCollection') fc = data;
+  else if(data.type==='Feature') fc = {type:'FeatureCollection',features:[data]};
+  else if(data.type==='GeometryCollection') fc = {type:'FeatureCollection',
+    features:(data.geometries||[]).map(g=>({type:'Feature',properties:{},geometry:g}))};
+  else fc = {type:'FeatureCollection',features:[{type:'Feature',properties:{},geometry:data}]};
+
+  // boş geometrileri ayıkla
+  fc = {type:'FeatureCollection', features:(fc.features||[]).filter(f=>f && f.geometry)};
+
+  // Koordinat sistemi kontrolü: TKGM bazı dosyaları metre bazlı (Web Mercator / EPSG:3857) verir
+  let looksMeters=false;
+  const scan = (co)=>{
+    if(looksMeters) return;
+    if(typeof co[0]==='number'){ if(Math.abs(co[0])>180 || Math.abs(co[1])>90) looksMeters=true; return; }
+    co.forEach(scan);
+  };
+  try{ fc.features.forEach(f=>{ if(f.geometry && f.geometry.coordinates) scan(f.geometry.coordinates); }); }catch(e){}
+
+  if(looksMeters){
+    const toWgs = (co)=>{
+      if(typeof co[0]==='number'){
+        const lon = co[0]*180/20037508.34;
+        let lat = co[1]*180/20037508.34;
+        lat = 180/Math.PI*(2*Math.atan(Math.exp(lat*Math.PI/180))-Math.PI/2);
+        return [lon,lat];
+      }
+      return co.map(toWgs);
+    };
+    fc.features.forEach(f=>{ try{ f.geometry.coordinates = toWgs(f.geometry.coordinates); }catch(e){} });
+  }
+  return fc;
 }
 
 function loadParcel(geojson){
@@ -770,18 +805,35 @@ function startRecording(restore){
   const rctx = rc.getContext('2d');
 
   let compositing=true;
+  let blackChecked=false;
   (function frame(){
     if(!compositing) return;
     try{
       const w=mapCanvas.width, h=mapCanvas.height;
-      // cover-crop: haritayı hedefe taşan şekilde ölçekle, ortala (boşluk kalmaz)
-      const s=Math.max(W/w, H/h), dw=w*s, dh=h*s;
-      rctx.fillStyle='#000'; rctx.fillRect(0,0,W,H);
-      rctx.drawImage(mapCanvas, (W-dw)/2, (H-dh)/2, dw, dh);
-      drawOverlay(rctx,W,H);
+      if(w>0 && h>0){
+        // cover-crop: haritayı hedefe taşan şekilde ölçekle, ortala (boşluk kalmaz)
+        const s=Math.max(W/w, H/h), dw=w*s, dh=h*s;
+        rctx.fillStyle='#0b1a1f'; rctx.fillRect(0,0,W,H);
+        rctx.drawImage(mapCanvas, (W-dw)/2, (H-dh)/2, dw, dh);
+        drawOverlay(rctx,W,H);
+      }
+      map.triggerRepaint();   // harita sürekli çizilsin, kare donmasın
     }catch(e){}
     requestAnimationFrame(frame);
   })();
+
+  // 1,5 sn sonra kareyi kontrol et: tamamen siyahsa kullanıcıyı uyar
+  setTimeout(()=>{
+    if(blackChecked) return; blackChecked=true;
+    try{
+      const d = rctx.getImageData(Math.floor(W/2), Math.floor(H/2), 8, 8).data;
+      let sum=0; for(let i=0;i<d.length;i+=4) sum += d[i]+d[i+1]+d[i+2];
+      if(sum < 60){
+        recBadge.textContent='⚠ Görüntü alınamıyor';
+        console.warn('Siyah kare tespit edildi — WebGL bağlamı kaybolmuş olabilir.');
+      }
+    }catch(e){}
+  }, 1500);
 
   const fail = (msg)=>{ compositing=false; if(restore) restore(); recBadge.style.display='none'; recordBtn.disabled=false; alert(msg); };
 
