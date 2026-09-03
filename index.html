@@ -265,7 +265,7 @@
       <button class="btn ghost" id="pasteBtn" style="margin-top:8px">Yapıştırılanı Yükle</button>
     </div>
 
-    <p class="copyr">Parsel Tur bağımsız bir araçtır; TKGM, Çevre ve Şehircilik Bakanlığı veya herhangi bir resmi kurumla bağlantılı/yetkili değildir. Yüklenen veriler kullanıcıya aittir ve kullanımından kullanıcı sorumludur. Buradaki 3 boyutlu görüntüler ve videolar yalnızca tanıtım ve bilgilendirme amaçlıdır; resmi ölçü, sınır, alan veya belge niteliği taşımaz. Resmi ve bağlayıcı bilgi için TKGM esastır.<br><a href="gizlilik.html" style="color:var(--gold-soft)">Gizlilik &amp; KVKK</a> · Parsel Tur · parseltur.com<br>Tüm hakları saklıdır © 2026 Armağan Kocabaş · Parsel Tur</p>
+    <p class="copyr">Parsel Tur bağımsız bir araçtır; TKGM, Çevre ve Şehircilik Bakanlığı veya herhangi bir resmi kurumla bağlantılı/yetkili değildir. Yüklenen veriler kullanıcıya aittir ve kullanımından kullanıcı sorumludur. Buradaki 3 boyutlu görüntüler ve videolar yalnızca tanıtım ve bilgilendirme amaçlıdır; resmi ölçü, sınır, alan veya belge niteliği taşımaz. Resmi ve bağlayıcı bilgi için TKGM esastır.<br><a href="gizlilik.html" style="color:var(--gold-soft)">Gizlilik &amp; KVKK</a> · Parsel Tur · parseltur.com<br>Diğer ücretsiz araçlar: <a href="https://ilanfotosu.com" target="_blank" rel="noopener" style="color:var(--gold-soft)">ilanfotosu.com</a> · <a href="https://3dkatplan.com" target="_blank" rel="noopener" style="color:var(--gold-soft)">3dkatplan.com</a> · <a href="https://gunesalirmi.com" target="_blank" rel="noopener" style="color:var(--gold-soft)">gunesalirmi.com</a><br><a href="https://armagankocabas.com" target="_blank" rel="noopener" style="color:var(--gold-soft)">armagankocabas.com</a><br>Tüm hakları saklıdır © 2026 Armağan Kocabaş · Parsel Tur</p>
 
   </div>
 </aside>
@@ -547,13 +547,36 @@ function loadParcel(geojson){
 function fitToParcel(fc){
   try{
     const bbox = turf.bbox(fc);
+    const bounds = [[bbox[0],bbox[1]],[bbox[2],bbox[3]]];
     // Formata göre çerçeve payı: dikeyde parselin sığması için daha fazla boşluk
     const r = (typeof ratioSel!=='undefined' && ratioSel.value) ? ratioSel.value : '16:9';
     const pad = r==='9:16' ? {top:150,bottom:150,left:90,right:90}
               : r==='1:1'  ? {top:110,bottom:110,left:110,right:110}
               : {top:70,bottom:70,left:120,right:120};
-    map.fitBounds([[bbox[0],bbox[1]],[bbox[2],bbox[3]]],
-      {padding:pad,maxZoom:17.3,pitch:parseFloat(pitch.value),bearing:map.getBearing(),duration:1400});
+    const brg = map.getBearing(), tilt = parseFloat(pitch.value);
+    // ÖNEMLİ: zoom'u eğimsiz (pitch:0) hesapla — eğimli hesap aşırı uzaklaştırıyor
+    let cam=null;
+    try{ cam = map.cameraForBounds(bounds,{padding:pad,bearing:brg,pitch:0}); }catch(e){}
+
+    // Küçük parseller için taban zoom: parselin ekranda yeterince büyük görünmesini garanti eder
+    let zFloor = 0;
+    try{
+      const wM = turf.distance([bbox[0],bbox[1]],[bbox[2],bbox[1]],{units:'meters'});
+      const hM = turf.distance([bbox[0],bbox[1]],[bbox[0],bbox[3]],{units:'meters'});
+      const sizeM = Math.max(wM,hM,40);
+      const fill = r==='9:16' ? 0.40 : (r==='1:1' ? 0.48 : 0.52);
+      const cv = map.getCanvas();
+      const px = Math.max(Math.min(cv.clientWidth||900, cv.clientHeight||600)*fill, 120);
+      const lat = (bbox[1]+bbox[3])/2;
+      zFloor = Math.log2(156543.03392*Math.cos(lat*Math.PI/180)/((sizeM*1.28)/px));
+    }catch(e){}
+
+    if(cam && isFinite(cam.zoom)){
+      const z = Math.min(Math.max(cam.zoom, zFloor||cam.zoom), 18.5);
+      map.easeTo({center:cam.center, zoom:z, pitch:tilt, bearing:brg, duration:1400});
+    }else{
+      map.fitBounds(bounds,{padding:pad,maxZoom:18.5,pitch:tilt,bearing:brg,duration:1400});
+    }
   }catch(e){}
 }
 
@@ -665,8 +688,12 @@ function setTraceVisible(on){
     if(map.getLayer(id)) map.setLayoutProperty(id,'visibility', on?'visible':'none');
   });
 }
+let traceLastUpd = 0;
 function updateTrace(progress){
   if(!traceChk.checked || !traceLines.length || !map.getSource('trace')) return;
+  const now = Date.now();
+  if(now - traceLastUpd < 55 && progress < 1) return;   // ~18 fps: kayıt akıcı kalsın
+  traceLastUpd = now;
   const p = Math.min(Math.max(progress,0.0001),1);
   // dolgu da sıfırdan görünür hale gelsin (video boyunca yavaşça)
   if(map.getLayer('parcel-fill')) map.setPaintProperty('parcel-fill','fill-opacity', parseFloat(opacity.value)*p);
@@ -862,7 +889,7 @@ function startRecording(restore){
   };
 
   if(!orbiting) orbitBtn.click();
-  mediaRec.start();
+  mediaRec.start(1000);   // saniyelik parçalar: süre bilgisi doğru yazılır
   const REC_SECONDS = parseInt(recLen.value,10) || 57;
   let secs = REC_SECONDS;
   recBadge.style.display='block';
