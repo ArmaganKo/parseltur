@@ -541,7 +541,15 @@ function loadParcel(geojson){
   const m2 = Math.round(area);
   cardArea.textContent = m2 ? m2.toLocaleString('tr-TR')+' m²' : '— m²';
 
-  fitToParcel(fc);
+  // odaklan + haritayı zorla yeniden çiz (fare oynatmadan görünsün)
+  const focusNow = ()=>{
+    fitToParcel(fc);
+    map.triggerRepaint();
+    map.once('moveend', ()=>map.triggerRepaint());
+  };
+  if(map.isStyleLoaded()) setTimeout(focusNow, 50);
+  else map.once('idle', focusNow);
+  setTimeout(()=>map.triggerRepaint(), 1600);
 }
 
 function fitToParcel(fc){
@@ -572,10 +580,10 @@ function fitToParcel(fc){
     }catch(e){}
 
     if(cam && isFinite(cam.zoom)){
-      const z = Math.min(Math.max(cam.zoom, zFloor||cam.zoom), 18.5);
+      const z = Math.min(Math.max(cam.zoom, zFloor||cam.zoom), 17.8);
       map.easeTo({center:cam.center, zoom:z, pitch:tilt, bearing:brg, duration:1400});
     }else{
-      map.fitBounds(bounds,{padding:pad,maxZoom:18.5,pitch:tilt,bearing:brg,duration:1400});
+      map.fitBounds(bounds,{padding:pad,maxZoom:17.8,pitch:tilt,bearing:brg,duration:1400});
     }
   }catch(e){}
 }
@@ -605,7 +613,19 @@ fileInput.onchange=e=>{
 demoBtn.onclick=()=>{ adaText.value='Örnek Parsel'; updateCard(); loadParcel(demo); };
 pasteBtn.onclick=()=>{ try{ loadParcel(JSON.parse(pasteBox.value)); }catch(e){ alert('Yapıştırılan metin geçerli GeoJSON değil.'); } };
 
-exag.oninput=()=>{ exagVal.textContent=parseFloat(exag.value).toFixed(1)+'×'; map.setTerrain({source:'terrain',exaggeration:parseFloat(exag.value)}); };
+exag.oninput=()=>{ exagVal.textContent=parseFloat(exag.value).toFixed(1)+'×'; applyTerrain(); };
+
+// Yüksek zoom'da arazi verisi esnetildiği için dik yamaçlarda bozulma olur.
+// Yaklaştıkça abartıyı yumuşatıp bu bozulmayı engelliyoruz.
+function applyTerrain(){
+  try{
+    const base = parseFloat(exag.value)||1.5;
+    const z = map.getZoom();
+    const f = z<=15.5 ? 1 : Math.max(0.35, 1 - (z-15.5)*0.28);
+    map.setTerrain({source:'terrain', exaggeration: Math.max(base*f, 0.2)});
+  }catch(e){}
+}
+map.on('zoomend', applyTerrain);
 pitch.oninput=()=>{ pitchVal.textContent=pitch.value+'°'; map.easeTo({pitch:parseFloat(pitch.value),duration:300}); };
 fitBtn.onclick=()=>{ if(map.getSource('parcel')) fitToParcel(map.getSource('parcel')._data); };
 
