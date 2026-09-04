@@ -654,8 +654,10 @@ exag.oninput=()=>{ exagVal.textContent=parseFloat(exag.value).toFixed(1)+'×'; t
 // yamaçlarda bozulma olur. Yaklaştıkça abartıyı azaltıp, çok yakında tamamen kapatıyoruz.
 let terrainLast = 0, terrainOff = false;
 function applyTerrain(force){
+  // Tur/kayıt sırasında araziye ASLA dokunma — açıp kapatmak siyah bant hatası yapar
+  if(orbiting && !force) return;
   const now = Date.now();
-  if(!force && now - terrainLast < 200) return;
+  if(!force && now - terrainLast < 300) return;
   terrainLast = now;
   try{
     if(terrainChk && !terrainChk.checked){
@@ -664,10 +666,9 @@ function applyTerrain(force){
     }
     const base = parseFloat(exag.value)||1.5;
     const z = map.getZoom();
-    if(z >= 17.1){                       // çok yakın: arazi kapalı, bozulma yok
-      if(!terrainOff){ map.setTerrain(null); terrainOff=true; }
-      return;
-    }
+    // histerezis: 17.3 üstünde kapat, 16.8 altına inince geri aç (sınırda titremesin)
+    if(!terrainOff && z >= 17.3){ map.setTerrain(null); terrainOff=true; return; }
+    if(terrainOff && z > 16.8) return;
     const f = z<=15.3 ? 1 : Math.max(0.3, 1-(z-15.3)*0.38);
     map.setTerrain({source:'terrain', exaggeration: Math.max(base*f, 0.15)});
     terrainOff=false;
@@ -738,7 +739,6 @@ function orbit(){
   const traceProgress = Math.min(elapsed / Math.max(totalSeconds - early, 1), 1);
   updateTrace(traceProgress);
   updateRoads(traceProgress);
-  applyTerrain();          // tur sırasında zoom değiştikçe araziyi güvenli tut
 
   raf=requestAnimationFrame(orbit); 
 }
@@ -802,6 +802,21 @@ orbitBtn.onclick=()=>{
     startBearing = map.getBearing();
     initialZoom = map.getZoom();
     initialPitch = Math.min(Math.max(parseFloat(pitch.value),58),68);
+
+    // ARAZİ KARARI: tur boyunca değişmeyecek şekilde bir kez ver.
+    // Turun ulaşacağı en yüksek zoom 17.3'ü geçiyorsa arazi kapalı başlar (siyah bant hatası olmaz).
+    try{
+      const mode0 = document.getElementById('tourType').value;
+      const peakZoom = initialZoom + (mode0==='dive' ? 0.9 : (mode0==='helix' ? 0 : 0.4));
+      if(!terrainChk.checked || peakZoom >= 17.3){
+        map.setTerrain(null); terrainOff = true;
+      }else{
+        const base = parseFloat(exag.value)||1.5;
+        const f = initialZoom<=15.3 ? 1 : Math.max(0.3, 1-(initialZoom-15.3)*0.38);
+        map.setTerrain({source:'terrain', exaggeration: Math.max(base*f, 0.15)});
+        terrainOff = false;
+      }
+    }catch(e){}
     if(traceChk.checked && traceLines.length){
       setTraceVisible(true);
       if(map.getLayer('parcel-fill')) map.setPaintProperty('parcel-fill','fill-opacity',0);
@@ -814,7 +829,7 @@ orbitBtn.onclick=()=>{
     map.easeTo({pitch:initialPitch,duration:600}); 
     orbit(); 
   }
-  else { cancelAnimationFrame(raf); resetTrace(); }
+  else { cancelAnimationFrame(raf); resetTrace(); applyTerrain(true); }
 };
 
 /* ---------- Videoya gömülen danışman etiketi ---------- */
@@ -960,7 +975,7 @@ function startRecording(restore){
   };
 
   if(!orbiting) orbitBtn.click();
-  mediaRec.start(1000);   // saniyelik parçalar: süre bilgisi doğru yazılır
+  mediaRec.start();   // parçasız kayıt: video ileri/geri sarılabilir olur
   const REC_SECONDS = parseInt(recLen.value,10) || 57;
   let secs = REC_SECONDS;
   recBadge.style.display='block';
