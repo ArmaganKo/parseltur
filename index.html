@@ -131,8 +131,9 @@
 
 <div id="map"></div>
 
-<div class="badge">🚁 <b>Parsel Tur</b> · uydu + 3D arazi modeli</div>
+<div class="badge">Parsel Tur · 3D</div>
 <div id="recBadge">● Kaydediliyor…</div>
+<div id="mapInfo"><span id="miLabel">—</span><span class="sep"></span><b id="miArea">—</b><span class="sep"></span><span id="miFmt">16:9</span><span class="sep"></span><span id="miDur">57 sn</span></div>
 <div id="ovPreview" class="bl"><img id="ovPreviewImg" alt="" /><div class="txt"><span class="nm" id="ovPreviewName"></span><span class="ph" id="ovPreviewPhone"></span></div></div>
 
 <aside id="panel">
@@ -141,139 +142,151 @@
       <img class="brand-av" src="logo.png" alt="Parsel Tur logosu" />
       <div>
         <div class="name">Parsel <b>Tur</b></div>
-        <div class="sub">Arsanı 3D drone videosuna çevir</div>
+        <div class="sub">GeoJSON dosyanı yükle, görünümü seç, videonu indir.</div>
       </div>
     </a>
   </div>
   <div class="scroll">
 
-    <button class="btn ghost" id="helpBtn" style="margin-bottom:16px">❓ Nasıl kullanılır?</button>
+    <button class="btn ghost small" id="helpBtn">❓ Nasıl kullanılır?</button>
 
-    <div class="grp">
-      <h3>1 · Parsel Yükle</h3>
+    <!-- ADIM 1 -->
+    <div class="step-card">
+      <div class="step-head"><span class="step-no">1</span> Parseli yükle</div>
       <button class="btn primary" id="loadFile">📁 GeoJSON Dosyası Seç</button>
       <input type="file" id="fileInput" accept=".geojson,.json" multiple hidden />
-      <button class="btn ghost" id="demoBtn">▶ Örnek Parseli Göster</button>
-      <p class="hint">
-        TKGM <a href="https://parselsorgu.tkgm.gov.tr/" target="_blank" rel="noopener">Parsel Sorgu</a>'da
-        parseli bul → <b>GeoJSON</b> seç → indir → buraya yükle.<br>
-        <span style="opacity:.85">Yüklediğiniz dosya yalnızca tarayıcınızda işlenir, sunucuya gönderilmez. Verinin kullanımından kullanıcı sorumludur.</span>
-      </p>
+      <button class="btn ghost" id="demoBtn" style="margin-top:8px">▶ Örnek Parseli Göster</button>
+      <p class="hint">TKGM <a href="https://parselsorgu.tkgm.gov.tr/" target="_blank" rel="noopener">Parsel Sorgu</a>'dan GeoJSON indirip buraya yükleyin.</p>
+      <p class="trust">🔒 GeoJSON dosyanız yalnızca tarayıcınızda işlenir, sunucuya gönderilmez.</p>
+      <div class="area-out" id="areaOut" style="display:none">Parsel alanı: <b id="areaOutVal">—</b></div>
     </div>
 
-    <div class="grp">
-      <h3>2 · Görünüm & Video Ayarları</h3>
-      <label class="fld">Arazi abartısı (yükseklik) · <span id="exagVal">1.5×</span></label>
-      <input type="range" id="exag" min="0" max="3" step="0.1" value="1.5" />
-      <label class="fld">Harita kaynağı</label>
-      <select id="imgSrc">
-        <option value="esri" selected>Uydu — standart (varsayılan)</option>
-        <option value="clarity">Uydu HD — daha net, daha çok yakınlaşır</option>
-        <option value="topo">Topoğrafik (yollar + isimler)</option>
-      </select>
-      <label class="switch" style="margin-top:6px"><input type="checkbox" id="terrainChk" checked /> <span>⛰ 3D arazi (yakın planda otomatik kapanır)</span></label>
-      <label class="fld">Eğim (pitch) · <span id="pitchVal">65°</span></label>
-      <input type="range" id="pitch" min="0" max="85" step="1" value="65" />
-      <button class="btn ghost" id="fitBtn" style="margin-top:14px">🎯 Parsele Odaklan</button>
-      
-      <label class="fld">Kamera Hareket Tarzı</label>
+    <!-- ADIM 2 -->
+    <div class="step-card">
+      <div class="step-head"><span class="step-no">2</span> Video görünümünü seç</div>
+      <label class="fld">Video tarzı</label>
       <select id="tourType">
-        <option value="classic" selected>Klasik Dönüş (Sabit)</option>
-        <option value="helix">Helis (Dönerek Uzaklaş/Yüksel)</option>
-        <option value="dive">Dalış (Dönerek Yakınlaş)</option>
+        <option value="classic">Klasik</option>
+        <option value="helix">Sinematik</option>
+        <option value="dive">Yakın Plan</option>
       </select>
-
-      <label class="fld">Video süresi</label>
+      <label class="fld">Format</label>
+      <select id="ratioSel">
+        <option value="16:9" selected>Yatay 16:9</option>
+        <option value="9:16">Dikey 9:16</option>
+        <option value="1:1">Kare 1:1</option>
+      </select>
+      <label class="fld">Süre</label>
       <select id="recLen">
         <option value="15">15 saniye</option>
         <option value="30">30 saniye</option>
-        <option value="57" selected>57 saniye (Sahibinden)</option>
+        <option value="57" selected>57 saniye</option>
         <option value="90">90 saniye</option>
       </select>
-
-      <label class="fld">Video formatı (en-boy)</label>
-      <select id="ratioSel">
-        <option value="16:9" selected>Yatay 16:9 (YouTube / Sahibinden)</option>
-        <option value="9:16">Dikey 9:16 (Reels / Story)</option>
-        <option value="1:1">Kare 1:1 (Gönderi)</option>
-      </select>
-      
-      <button class="btn ghost" id="orbitBtn" style="margin-top:8px">🚁 Drone Turu Başlat</button>
-      <button class="btn primary" id="recordBtn" style="margin-top:8px">🎬 Video Kaydet (otomatik tur)</button>
     </div>
 
-    <div class="grp">
-      <h3>Videoya Danışman Bilgisi</h3>
-      <label class="fld">Danışman adı (videoya yazılır)</label>
-      <input type="text" id="ovName" placeholder="Örn. Ad Soyad" value="" />
-      <label class="fld">Telefon / not (isteğe bağlı)</label>
-      <input type="text" id="ovPhone" placeholder="0532 000 00 00" />
-      <label class="fld">Köşe</label>
-      <select id="ovCorner">
-        <option value="bl" selected>Sol alt</option>
-        <option value="br">Sağ alt</option>
-      </select>
-      <div class="inline" style="margin-top:10px"><span>Kart arka planı</span><input type="color" id="ovBg" value="#0d9488" /></div>
-      <label class="fld">Danışman fotoğrafı (isteğe bağlı)</label>
-      <button class="btn ghost" id="ovPhotoBtn">📷 Fotoğraf Seç</button>
-      <input type="file" id="ovPhotoInput" accept="image/*" hidden />
-      <label class="switch" style="margin-top:10px"><input type="checkbox" id="ovToggle" checked /> Videoda göster</label>
-      <p class="hint">Yazdığın isim videonun üstüne kalıcı olarak gömülür — indirdikten sonra düzenleme gerekmez.</p>
+    <!-- ADIM 3 -->
+    <div class="step-card">
+      <div class="step-head"><span class="step-no">3</span> Videoyu oluştur</div>
+      <button class="btn primary big" id="recordBtn">🎬 Drone Videosunu Oluştur</button>
+      <button class="btn ghost small" id="orbitBtn" style="margin-top:8px">👁 Önizleme</button>
     </div>
 
-    <div class="grp">
-      <h3>3 · Parsel Stili</h3>
-      <div class="inline"><span>Dolgu rengi</span><input type="color" id="fillColor" value="#14b8a6" /></div>
-      <label class="fld">Dolgu opaklığı · <span id="opVal">0.35</span></label>
-      <input type="range" id="opacity" min="0" max="1" step="0.05" value="0.35" />
-      <div class="inline" style="margin-top:6px"><span>Çizgi rengi</span><input type="color" id="lineColor" value="#ff4d6d" /></div>
-      <label class="fld">Çizgi kalınlığı · <span id="lwVal">3px</span></label>
-      <input type="range" id="lineWidth" min="1" max="8" step="0.5" value="3" />
-      <label class="switch" style="margin-top:10px"><input type="checkbox" id="traceChk" checked /> <span>✨ Lazer sınır çizimi (tur boyunca sınırı çizerek tamamlar)</span></label>
+    <!-- SONUÇ -->
+    <div class="result-box" id="resultBox" style="display:none">
+      <div class="result-title">✅ Videonuz hazır</div>
+      <p class="hint" style="margin-top:2px">Dosya bilgisayarınıza indirildi.</p>
+      <button class="btn ghost" id="againBtn" style="margin-top:8px">🔄 Yeni video oluştur</button>
+      <button class="btn ghost small" id="leadBtn" style="margin-top:8px">Profesyonel destek alın</button>
     </div>
 
-    <div class="grp">
-      <h3>3b · Hisse / Bölüm Vurgulama</h3>
-      <p class="hint" style="margin-top:0">Parselin içinde bir bölümü (örn. hisseye karşılık gelen fiilî kısmı) elle çizip farklı renkte vurgula. Haritaya <b>tıklayarak köşe ekle</b>, <b>çift tıkla bitir</b>.</p>
-      <div class="inline"><span>Vurgu rengi</span><input type="color" id="hlColor" value="#f59e0b" /></div>
-      <button class="btn ghost" id="hlDraw" style="margin-top:8px">✏️ Bölüm Çiz</button>
-      <button class="btn ghost" id="hlClear" style="margin-top:8px">🗑 Vurguyu Temizle</button>
-      <p class="hint" id="hlInfo" style="display:none"></p>
-      <p class="hint" style="opacity:.8">Not: Hisse konumu temsilîdir; hisseli mülkiyette pay, resmî olarak parselin tamamına aittir. Bu vurgu resmî sınır değildir.</p>
+    <!-- İSTEĞE BAĞLI -->
+    <div class="opt-card">
+      <label class="switch"><input type="checkbox" id="ovToggle" /> <span>Videoya iletişim bilgilerimi ekle</span></label>
+      <div id="contactFields" style="display:none">
+        <label class="fld">Danışman adı</label>
+        <input type="text" id="ovName" placeholder="Ad Soyad" value="" />
+        <label class="fld">Telefon / not</label>
+        <input type="text" id="ovPhone" placeholder="0500 000 00 00" />
+        <label class="fld">Kart köşesi</label>
+        <select id="ovCorner">
+          <option value="br" selected>Sağ alt</option>
+          <option value="bl">Sol alt</option>
+          <option value="tr">Sağ üst</option>
+          <option value="tl">Sol üst</option>
+        </select>
+        <div class="inline" style="margin-top:10px"><span>Kart rengi</span><input type="color" id="ovBg" value="#0d9488" /></div>
+        <label class="fld">Danışman fotoğrafı</label>
+        <button class="btn ghost small" id="ovPhotoBtn">📷 Fotoğraf Seç</button>
+        <input type="file" id="ovPhotoInput" accept="image/*" hidden />
+      </div>
     </div>
 
-    <div class="grp">
-      <h3>3c · Yakındaki Ana Yollar</h3>
-      <p class="hint" style="margin-top:0">Parselin çevresindeki ana yolları saydam ışıklı bant olarak göster. Yollar da video boyunca ilerleyerek çizilir.</p>
-      <label class="switch"><input type="checkbox" id="roadChk" /> <span>🛣 Ana yolları göster</span></label>
-      <label class="fld">Arama yarıçapı</label>
-      <select id="roadRadius">
-        <option value="600">600 m (yakın çevre)</option>
-        <option value="1200" selected>1,2 km (önerilen)</option>
-        <option value="2500">2,5 km (geniş)</option>
-      </select>
-      <div class="inline" style="margin-top:8px"><span>Yol rengi</span><input type="color" id="roadColor" value="#38bdf8" /></div>
-      <button class="btn ghost" id="roadLoad" style="margin-top:8px">🔄 Yolları Getir / Yenile</button>
-      <p class="hint" id="roadInfo" style="display:none"></p>
-      <p class="hint" style="opacity:.8">Yol verisi © OpenStreetMap katkıcıları (ODbL lisansı). Konum ve güzergâhlar temsilîdir; resmî yol projesi değildir.</p>
+    <div class="opt-card">
+      <label class="switch"><input type="checkbox" id="cardToggle" /> <span>Parsel bilgi kartını göster</span></label>
+      <div id="cardFields" style="display:none">
+        <label class="fld">Ada / Parsel etiketi</label>
+        <textarea id="adaText" style="height:38px" placeholder="Örn. 1234 ada 5 parsel"></textarea>
+      </div>
     </div>
 
-    <div class="grp">
-      <h3>4 · Pazarlama Kartı</h3>
-      <label class="switch"><input type="checkbox" id="cardToggle" checked /> Kartı göster</label>
-      <label class="fld">Ada / Parsel etiketi</label>
-      <textarea id="adaText" style="height:38px">Örnek Parsel</textarea>
-      <p class="hint">Kart, ekran görüntüsü veya ekran kaydı (drone turu) alırken sunum için kullanılır.</p>
-    </div>
+    <!-- GELİŞMİŞ -->
+    <details class="adv">
+      <summary>⚙️ Gelişmiş ayarlar</summary>
+      <div class="adv-body">
 
-    <div class="grp">
-      <h3>Veya GeoJSON yapıştır</h3>
-      <textarea id="pasteBox" placeholder='{"type":"Feature", ...}'></textarea>
-      <button class="btn ghost" id="pasteBtn" style="margin-top:8px">Yapıştırılanı Yükle</button>
-    </div>
+        <div class="adv-sec">Görünüm</div>
+        <label class="fld">Arazi abartısı (yükseklik) · <span id="exagVal">1.5×</span></label>
+        <input type="range" id="exag" min="0" max="3" step="0.1" value="1.5" />
+        <label class="fld">Harita kaynağı</label>
+        <select id="imgSrc">
+          <option value="esri" selected>Uydu — standart (varsayılan)</option>
+          <option value="clarity">Uydu HD — daha net, daha çok yakınlaşır</option>
+          <option value="topo">Topoğrafik (yollar + isimler)</option>
+        </select>
+        <label class="switch" style="margin-top:8px"><input type="checkbox" id="terrainChk" checked /> <span>⛰ 3D arazi (yakın planda otomatik kapanır)</span></label>
+        <label class="fld">Eğim (pitch) · <span id="pitchVal">65°</span></label>
+        <input type="range" id="pitch" min="0" max="85" step="1" value="65" />
+        <button class="btn ghost small" id="fitBtn" style="margin-top:10px">🎯 Parsele odaklan</button>
+
+        <div class="adv-sec">Parsel stili</div>
+        <div class="inline"><span>Dolgu rengi</span><input type="color" id="fillColor" value="#14b8a6" /></div>
+        <label class="fld">Dolgu opaklığı · <span id="opVal">0.35</span></label>
+        <input type="range" id="opacity" min="0" max="1" step="0.05" value="0.35" />
+        <div class="inline" style="margin-top:6px"><span>Çizgi rengi</span><input type="color" id="lineColor" value="#ff4d6d" /></div>
+        <label class="fld">Çizgi kalınlığı · <span id="lwVal">3px</span></label>
+        <input type="range" id="lineWidth" min="1" max="8" step="0.5" value="3" />
+        <label class="switch" style="margin-top:8px"><input type="checkbox" id="traceChk" checked /> <span>✨ Lazer sınır çizimi</span></label>
+
+        <div class="adv-sec">Parsel vurguları</div>
+        <p class="hint" style="margin-top:0">Parselin içinde bir bölümü (örn. hisseye karşılık gelen fiilî kısmı) elle çiz. Haritaya <b>tıklayarak köşe ekle</b>, <b>çift tıkla bitir</b>.</p>
+        <div class="inline"><span>Vurgu rengi</span><input type="color" id="hlColor" value="#f59e0b" /></div>
+        <button class="btn ghost small" id="hlDraw" style="margin-top:8px">✏️ Bölüm çiz</button>
+        <button class="btn ghost small" id="hlClear" style="margin-top:8px">🗑 Vurguyu temizle</button>
+        <p class="hint" id="hlInfo" style="display:none"></p>
+        <p class="hint" style="opacity:.85">Not: Hisse konumu temsilîdir; hisseli mülkiyette pay, resmî olarak parselin tamamına aittir. <b>Bu vurgu resmî sınır değildir.</b></p>
+
+        <div class="adv-sec">Çevre bilgileri</div>
+        <label class="switch"><input type="checkbox" id="roadChk" /> <span>🛣 Ana yolları göster</span></label>
+        <label class="fld">Arama yarıçapı</label>
+        <select id="roadRadius">
+          <option value="600">600 m (yakın çevre)</option>
+          <option value="1200" selected>1,2 km (önerilen)</option>
+          <option value="2500">2,5 km (geniş)</option>
+        </select>
+        <div class="inline" style="margin-top:8px"><span>Yol rengi</span><input type="color" id="roadColor" value="#38bdf8" /></div>
+        <button class="btn ghost small" id="roadLoad" style="margin-top:8px">🔄 Yolları getir / yenile</button>
+        <p class="hint" id="roadInfo" style="display:none"></p>
+        <p class="hint" style="opacity:.85">Yol verisi © OpenStreetMap katkıcıları (ODbL lisansı). Konum ve güzergâhlar temsilîdir; resmî yol projesi değildir.</p>
+
+        <div class="adv-sec">GeoJSON metni yapıştır</div>
+        <textarea id="pasteBox" placeholder='{"type":"Feature", ...}'></textarea>
+        <button class="btn ghost small" id="pasteBtn" style="margin-top:8px">Yapıştırılanı yükle</button>
+
+      </div>
+    </details>
 
     <p class="copyr">Parsel Tur bağımsız bir araçtır; TKGM, Çevre ve Şehircilik Bakanlığı veya herhangi bir resmi kurumla bağlantılı/yetkili değildir. Yüklenen veriler kullanıcıya aittir ve kullanımından kullanıcı sorumludur. Buradaki 3 boyutlu görüntüler ve videolar yalnızca tanıtım ve bilgilendirme amaçlıdır; resmi ölçü, sınır, alan veya belge niteliği taşımaz. Resmi ve bağlayıcı bilgi için TKGM esastır.<br><a href="gizlilik.html" style="color:var(--gold-soft)">Gizlilik &amp; KVKK</a> · Parsel Tur · parseltur.com<br>Diğer ücretsiz araçlar: <a href="https://ilanfotosu.com" target="_blank" rel="noopener" style="color:var(--gold-soft)">ilanfotosu.com</a> · <a href="https://3dkatplan.com" target="_blank" rel="noopener" style="color:var(--gold-soft)">3dkatplan.com</a> · <a href="https://gunesalirmi.com" target="_blank" rel="noopener" style="color:var(--gold-soft)">gunesalirmi.com</a><br><a href="https://armagankocabas.com" target="_blank" rel="noopener" style="color:var(--gold-soft)">armagankocabas.com</a><br>Tüm hakları saklıdır © 2026 Armağan Kocabaş · Parsel Tur</p>
-
   </div>
 </aside>
 
@@ -281,15 +294,15 @@
 
 <div id="card">
   <div class="tag">Satılık Arsa</div>
-  <div class="ada" id="cardAda">Örnek Parsel</div>
+  <div class="ada" id="cardAda">—</div>
   <div class="area" id="cardArea">— m²</div>
   <hr/>
   <div class="who-row">
     <img class="avatar" id="cardAv" src="" alt="" style="display:none" />
     <div class="avatar initials" id="cardAvPh">🏷️</div>
     <div>
-      <div class="who" id="cardWho">Danışman kartınız</div>
-      <div class="role" id="cardRole">Adınızı soldan ekleyin, videoya işlensin</div>
+      <div class="who" id="cardWho"></div>
+      <div class="role" id="cardRole"></div>
       <div class="web">parseltur.com</div>
     </div>
   </div>
@@ -353,6 +366,54 @@
   .brand-av{width:46px;height:46px;object-fit:contain}
   .copyr{font-size:10.5px;color:var(--muted);text-align:center;line-height:1.5;margin-top:6px;padding-top:14px;border-top:1px solid var(--line)}
   #recBadge{display:none;position:absolute;left:50%;top:56px;transform:translateX(-50%);z-index:8;background:#e11d48;color:#fff;font-size:12.5px;font-weight:700;padding:7px 16px;border-radius:30px;box-shadow:0 6px 20px rgba(225,29,72,.45)}
+
+
+  /* ===== Sadeleştirilmiş panel ===== */
+  .step-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(21,34,48,.05)}
+  .step-head{display:flex;align-items:center;gap:9px;font-size:14.5px;font-weight:700;color:var(--txt);margin-bottom:12px}
+  .step-no{width:23px;height:23px;border-radius:50%;background:var(--gold);color:#fff;font-size:12.5px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .btn.big{padding:15px;font-size:15px;font-weight:800}
+  .btn.small{padding:10px;font-size:12.5px}
+  .btn{min-height:44px}
+  .trust{font-size:11px;color:var(--muted);background:#f2f8f7;border-radius:8px;padding:8px 10px;margin-top:9px;line-height:1.5}
+  .area-out{margin-top:10px;background:#e6f4f2;border-radius:9px;padding:9px 11px;font-size:13px;color:var(--gold-soft);font-weight:600}
+  .opt-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:13px 14px;margin-bottom:12px}
+  .result-box{background:#e6f4f2;border:1px solid rgba(13,148,136,.3);border-radius:14px;padding:15px;margin-bottom:12px}
+  .result-title{font-size:15px;font-weight:800;color:var(--gold-soft)}
+  details.adv{background:#fff;border:1px solid var(--line);border-radius:14px;margin-bottom:12px;overflow:hidden}
+  details.adv>summary{cursor:pointer;padding:14px;font-size:13.5px;font-weight:700;color:var(--muted);list-style:none;min-height:44px;display:flex;align-items:center}
+  details.adv>summary::-webkit-details-marker{display:none}
+  details.adv>summary:after{content:'▾';margin-left:auto;transition:.2s}
+  details.adv[open]>summary:after{transform:rotate(180deg)}
+  details.adv[open]>summary{border-bottom:1px solid var(--line)}
+  .adv-body{padding:4px 14px 16px}
+  .adv-sec{font-size:11px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--gold);margin:18px 0 8px;padding-top:12px;border-top:1px solid var(--line)}
+  .adv-body>.adv-sec:first-child{border-top:none;padding-top:0;margin-top:6px}
+
+  /* Harita üstü özet kartı */
+  #mapInfo{position:absolute;left:50%;top:56px;transform:translateX(-50%);z-index:6;display:none;
+    background:rgba(255,255,255,.94);backdrop-filter:blur(6px);border:1px solid var(--line);
+    border-radius:11px;padding:8px 14px;font-size:12px;color:var(--txt);box-shadow:0 4px 16px rgba(21,34,48,.12);
+    gap:14px;align-items:center;white-space:nowrap}
+  #mapInfo.show{display:flex}
+  #mapInfo b{color:var(--gold-soft)}
+  #mapInfo .sep{width:1px;height:14px;background:var(--line)}
+
+  /* Mobil: panel alt sheet */
+  @media(max-width:680px){
+    #panel{top:auto;bottom:0;left:0;width:100%;height:74vh;border-right:none;
+      border-top:1px solid var(--line);border-radius:20px 20px 0 0;
+      transition:transform .28s ease;box-shadow:0 -8px 30px rgba(0,0,0,.22)}
+    #panel.closed{transform:translateY(calc(100% - 64px)) !important}
+    #panel .brand{cursor:pointer}
+    #panel .brand:after{content:'';position:absolute;top:8px;left:50%;transform:translateX(-50%);
+      width:40px;height:4px;border-radius:3px;background:var(--line)}
+    #panel .brand{position:relative;padding-top:16px}
+    #toggle{top:auto;bottom:calc(74vh + 10px);left:12px;transition:bottom .28s ease}
+    #panel.closed ~ #toggle{bottom:74px}
+    #card{transform:scale(.82);transform-origin:bottom right}
+    #mapInfo{font-size:11px;padding:6px 10px;gap:9px;top:50px}
+  }
 
   /* Mobil yönlendirme çubuğu */
   #mobileBar{display:none;position:fixed;left:0;right:0;bottom:0;z-index:40;background:#0f766e;color:#fff;padding:12px 14px;font-size:13.5px;line-height:1.5;box-shadow:0 -6px 24px rgba(0,0,0,.25)}
@@ -972,6 +1033,7 @@ function startRecording(restore){
     a.href=url; a.download='parsel-tur.'+ext; a.click();
     setTimeout(()=>URL.revokeObjectURL(url),1000);
     if(restore) restore();
+    if(typeof showResult==='function') showResult();
   };
 
   if(!orbiting) orbitBtn.click();
@@ -1066,8 +1128,8 @@ function updateOverlayPreview(){
   ovPreviewName.textContent=name;
   ovPreviewPhone.textContent=phone;
   // Sağ alttaki kartı da güncelle
-  cardWho.textContent = name || 'Danışman kartınız';
-  cardRole.textContent = name ? (phone || 'Gayrimenkul Danışmanı') : 'Adınızı soldan ekleyin, videoya işlensin';
+  cardWho.textContent = name || '';
+  cardRole.textContent = name ? (phone || '') : '';
   if(ovImgReady && ovPreviewImg.src){ cardAv.src=ovPreviewImg.src; cardAv.style.display='block'; cardAvPh.style.display='none'; }
   else { cardAv.style.display='none'; cardAvPh.style.display='flex'; }
 }
@@ -1080,7 +1142,7 @@ updateOverlayPreview();
 helpBtn.onclick=()=>window.open('nasil-yapilir.html','_blank');
 
 /* ---------- Pazarlama kartı ---------- */
-function updateCard(){ cardAda.textContent=adaText.value||'—'; }
+function updateCard(){ cardAda.textContent=adaText.value||'—'; if(typeof syncMapInfo==='function') syncMapInfo(); }
 adaText.oninput=updateCard;
 cardToggle.onchange=()=>card.classList.toggle('hide',!cardToggle.checked);
 
@@ -1369,11 +1431,12 @@ hlColor.oninput=()=>{
   var bar = document.getElementById('mobileBar');
   var tip = document.getElementById('firstTip');
 
-  if(isMobile && !localStorage.getItem('pt_mobile_ok')){
+  var LS={get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+  if(isMobile && !LS.get('pt_mobile_ok')){
     bar.style.display='block';
   }
   document.getElementById('mbClose').onclick = function(){
-    bar.style.display='none'; localStorage.setItem('pt_mobile_ok','1');
+    bar.style.display='none'; LS.set('pt_mobile_ok','1');
   };
   document.getElementById('mbShare').onclick = function(){
     var url='https://www.parseltur.com';
@@ -1381,13 +1444,66 @@ hlColor.oninput=()=>{
     else if(navigator.clipboard){ navigator.clipboard.writeText(url); this.textContent='✓ Kopyalandı'; }
   };
 
-  if(!isMobile && !localStorage.getItem('pt_tip_ok')){
+  if(!isMobile && !LS.get('pt_tip_ok')){
     tip.style.display='block';
   }
   document.getElementById('tipOk').onclick = function(){
-    tip.style.display='none'; localStorage.setItem('pt_tip_ok','1');
+    tip.style.display='none'; LS.set('pt_tip_ok','1');
   };
 })();
+
+</script>
+<script>
+/* ---------- Sadeleştirilmiş akış: yeni arayüz bağlantıları ---------- */
+(function(){
+  // İletişim bilgileri aç/kapa
+  function syncContact(){ contactFields.style.display = ovToggle.checked ? 'block':'none'; }
+  ovToggle.addEventListener('change', syncContact); syncContact();
+
+  // Parsel bilgi kartı aç/kapa
+  function syncCardFields(){ cardFields.style.display = cardToggle.checked ? 'block':'none'; }
+  cardToggle.addEventListener('change', syncCardFields); syncCardFields();
+  card.classList.toggle('hide', !cardToggle.checked);   // başlangıçta kapalı
+
+  // Harita üstü özet kartı
+  window.syncMapInfo = function(){
+    try{
+      miLabel.textContent = (adaText.value||'').trim() || 'Parsel';
+      miArea.textContent  = cardArea.textContent || '—';
+      miFmt.textContent   = ratioSel.value;
+      const d = recLen.value; miDur.textContent = d+' sn';
+      mapInfo.classList.toggle('show', !!hasParcel);
+      if(hasParcel){
+        areaOut.style.display='block';
+        areaOutVal.textContent = cardArea.textContent || '—';
+      }
+    }catch(e){}
+  };
+  ratioSel.addEventListener('change', syncMapInfo);
+  recLen.addEventListener('change', syncMapInfo);
+  setInterval(syncMapInfo, 1200);
+
+  // Lead CTA: video üretilene kadar gizli
+  try{ cta.style.display='none'; }catch(e){}
+  window.showResult = function(){
+    try{
+      resultBox.style.display='block';
+      cta.style.display='';
+      resultBox.scrollIntoView({behavior:'smooth',block:'nearest'});
+    }catch(e){}
+  };
+  againBtn.onclick = ()=>{ resultBox.style.display='none'; recordBtn.scrollIntoView({behavior:'smooth',block:'center'}); };
+  leadBtn.onclick  = ()=> modal.classList.add('open');
+
+  // Mobilde başlığa dokununca paneli aç/kapat (alt sheet)
+  if(window.matchMedia('(max-width:680px)').matches){
+    panel.classList.add('closed');
+    const br = panel.querySelector('.brand');
+    if(br) br.addEventListener('click', e=>{ if(e.target.closest('a')) return; panel.classList.toggle('closed'); });
+  }
+})();
+
+
 </script>
 </body>
 </html>
