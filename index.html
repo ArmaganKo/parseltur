@@ -513,6 +513,45 @@ map.on('load',()=>{
 });
 window.addEventListener('error',e=>console.warn('yakalandı:',e.message));
 
+
+/* ---------- Hızlı çizgi dilimleme (kayıt akıcılığı için) ---------- */
+// turf.lineSliceAlong her karede geodezik hesap yapıyordu; uzun çizgilerde
+// video sonlarına doğru tıkanmaya yol açıyordu. Bunun yerine mesafeleri bir
+// kez hesaplayıp, her karede sadece dizi dilimliyoruz.
+function prepLine(coords){
+  const cum=[0]; let total=0;
+  for(let i=1;i<coords.length;i++){
+    const dx=(coords[i][0]-coords[i-1][0])*Math.cos(coords[i][1]*Math.PI/180);
+    const dy=(coords[i][1]-coords[i-1][1]);
+    total += Math.sqrt(dx*dx+dy*dy)*111.32;   // km (yaklaşık, yeterli)
+    cum.push(total);
+  }
+  return {coords:coords, cum:cum, len:total};
+}
+function sliceFast(prep, fromKm, toKm){
+  const c=prep.coords, cum=prep.cum, n=c.length;
+  if(n<2) return null;
+  const a=Math.max(0,Math.min(fromKm,prep.len)), b=Math.max(a,Math.min(toKm,prep.len));
+  const at=(dist)=>{
+    let i=1; while(i<n && cum[i]<dist) i++;
+    if(i>=n) return c[n-1];
+    const seg=cum[i]-cum[i-1]||1, t=(dist-cum[i-1])/seg;
+    return [c[i-1][0]+(c[i][0]-c[i-1][0])*t, c[i-1][1]+(c[i][1]-c[i-1][1])*t];
+  };
+  const out=[at(a)];
+  for(let i=0;i<n;i++){ if(cum[i]>a && cum[i]<b) out.push(c[i]); }
+  out.push(at(b));
+  return {type:'Feature',properties:{},geometry:{type:'LineString',coordinates:out}};
+}
+// Çok noktalı çizgileri seyrelt (render maliyetini düşürür, görüntü aynı kalır)
+function thinCoords(c, maxPts){
+  if(c.length<=maxPts) return c;
+  const step=Math.ceil(c.length/maxPts), out=[];
+  for(let i=0;i<c.length;i+=step) out.push(c[i]);
+  if(out[out.length-1]!==c[c.length-1]) out.push(c[c.length-1]);
+  return out;
+}
+
 /* ---------- GeoJSON normalize + yükle ---------- */
 function toFeatureCollection(data){
   let fc;
@@ -580,11 +619,12 @@ function loadParcel(geojson){
       feats.forEach(l=>{
         if(l.geometry.type==='MultiLineString'){
           l.geometry.coordinates.forEach(c=>{
-            const single={type:'Feature',properties:{},geometry:{type:'LineString',coordinates:c}};
-            traceLines.push({line:single,len:turf.length(single)});
+            const p=prepLine(thinCoords(c,400));
+            traceLines.push({prep:p,len:p.len});
           });
         } else {
-          traceLines.push({line:l,len:turf.length(l)});
+          const p=prepLine(thinCoords(l.geometry.coordinates,400));
+          traceLines.push({prep:p,len:p.len});
         }
       });
     });
@@ -824,16 +864,15 @@ let traceLastUpd = 0;
 function updateTrace(progress){
   if(!traceChk.checked || !traceLines.length || !map.getSource('trace')) return;
   const now = Date.now();
-  if(now - traceLastUpd < 55 && progress < 1) return;   // ~18 fps: kayıt akıcı kalsın
+  if(now - traceLastUpd < 66 && progress < 1) return;   // ~15 fps: görsel fark yok, yük düşer
   traceLastUpd = now;
   const p = Math.min(Math.max(progress,0.0001),1);
   // dolgu da sıfırdan görünür hale gelsin (video boyunca yavaşça)
   if(map.getLayer('parcel-fill')) map.setPaintProperty('parcel-fill','fill-opacity', parseFloat(opacity.value)*p);
   const feats=[];
   traceLines.forEach(t=>{
-    try{
-      feats.push(turf.lineSliceAlong(t.line, 0, Math.max(t.len*p, 0.0005)));
-    }catch(e){}
+    const seg = sliceFast(t.prep, 0, Math.max(t.len*p, 0.0005));
+    if(seg) feats.push(seg);
   });
   map.getSource('trace').setData({type:'FeatureCollection',features:feats});
   // vurgu bölümü de ışınla çizilsin + dolgusu belirsin
@@ -841,7 +880,8 @@ function updateTrace(progress){
     if(map.getLayer('hl-fill')) map.setPaintProperty('hl-fill','fill-opacity', 0.45*p);
     const hf=[];
     hlTraceLines.forEach(t=>{
-      try{ hf.push(turf.lineSliceAlong(t.line, 0, Math.max(t.len*p, 0.0005))); }catch(e){}
+      const sg=sliceFast(t.prep, 0, Math.max(t.len*p, 0.0005));
+      if(sg) hf.push(sg);
     });
     map.getSource('hltrace').setData({type:'FeatureCollection',features:hf});
   }
@@ -980,8 +1020,14 @@ function startRecording(restore){
 
   let compositing=true;
   let blackChecked=false;
+  let lastDraw=0;
   (function frame(){
     if(!compositing) return;
+    requestAnimationFrame(frame);
+    // Video 30 fps; ekran 60/120 Hz olsa da fazladan çizim yapma (CPU yarıya iner)
+    const now=performance.now();
+    if(now - lastDraw < 31) return;
+    lastDraw = now;
     try{
       const w=mapCanvas.width, h=mapCanvas.height;
       if(w>0 && h>0){
@@ -993,7 +1039,6 @@ function startRecording(restore){
       }
       map.triggerRepaint();   // harita sürekli çizilsin, kare donmasın
     }catch(e){}
-    requestAnimationFrame(frame);
   })();
 
   // 1,5 sn sonra kareyi kontrol et: tamamen siyahsa kullanıcıyı uyar
@@ -1256,20 +1301,20 @@ async function fetchRoads(){
     // parselin merkezine en yakın nokta = çizimin başlangıç noktası (iki yöne açılır)
     const ctr = turf.point(c);
     roadLines = feats.map(f=>{
-      let len=0, anchor=0;
+      let anchor=0, prep=null;
       try{
-        len = turf.length(f);
+        prep = prepLine(thinCoords(f.geometry.coordinates, 220));
         const np = turf.nearestPointOnLine(f, ctr);
-        anchor = Math.min(Math.max(np.properties.location || 0, 0), len);
+        anchor = Math.min(Math.max(np.properties.location || 0, 0), prep.len);
       }catch(e){}
-      return {line:f, len, anchor};
-    }).filter(t=>t.len>0).sort((a,b)=>b.len-a.len).slice(0,30);
+      return {line:f, prep:prep, len:prep?prep.len:0, anchor};
+    }).filter(t=>t.prep && t.len>0).sort((a,b)=>b.len-a.len).slice(0,16);
 
     roadEnsureLayers();
     roadChk.checked = true;
     setRoadVisible(true);
     // tur çalışmıyorsa tamamını göster
-    if(!orbiting) map.getSource('roads').setData({type:'FeatureCollection',features:roadLines.map(t=>t.line)});
+    if(!orbiting) map.getSource('roads').setData({type:'FeatureCollection',features:roadLines.map(t=>sliceFast(t.prep,0,t.len)).filter(Boolean)});
     const names=[...new Set(roadLines.map(t=>t.line.properties.name).filter(Boolean))].slice(0,4);
     roadInfo.innerHTML = roadLines.length+' yol bulundu'+(names.length? ' · '+names.join(', ') : '');
   }catch(e){
@@ -1287,7 +1332,7 @@ let roadLastUpd = 0;
 function updateRoads(progress){
   if(!roadChk.checked || !roadLines.length || !map.getSource('roads')) return;
   const now = Date.now();
-  if(now - roadLastUpd < 70) return;   // performans için kare atla
+  if(now - roadLastUpd < 120) return;  // yollar daha seyrek güncellenir
   roadLastUpd = now;
   const p = Math.min(Math.max(progress,0.0001),1);
   const feats=[];
@@ -1299,14 +1344,15 @@ function updateRoads(progress){
       const end   = Math.min(a + (t.len - a) * p, t.len);
       const s2 = Math.min(start, Math.max(end - 0.004, 0));
       const e2 = Math.max(end, Math.min(start + 0.004, t.len));
-      feats.push(turf.lineSliceAlong(t.line, s2, e2));
+      const sg = sliceFast(t.prep, s2, e2);
+      if(sg) feats.push(sg);
     }catch(e){}
   });
   map.getSource('roads').setData({type:'FeatureCollection',features:feats});
 }
 function resetRoads(){
   if(!map.getSource('roads')) return;
-  map.getSource('roads').setData({type:'FeatureCollection',features: roadChk.checked ? roadLines.map(t=>t.line) : []});
+  map.getSource('roads').setData({type:'FeatureCollection',features: roadChk.checked ? roadLines.map(t=>sliceFast(t.prep,0,t.len)).filter(Boolean) : []});
   setRoadVisible(true);
 }
 
@@ -1377,7 +1423,8 @@ function hlFinish(){
     try{
       const ln=turf.polygonToLine(poly);
       const l = ln.type==='FeatureCollection' ? ln.features[0] : ln;
-      hlTraceLines.push({line:l,len:turf.length(l)});
+      const pr=prepLine(l.geometry.coordinates);
+      hlTraceLines.push({prep:pr,len:pr.len});
     }catch(e){}
     try{
       const m2=turf.area(poly);
