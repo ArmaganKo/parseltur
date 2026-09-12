@@ -553,25 +553,6 @@ function thinCoords(c, maxPts){
 }
 
 
-/* ---------- Işın animasyonu: GPU gradyanı (geometri yeniden basılmaz) ----------
-   Önceki yöntem her karede haritaya yeni çizgi verisi basıyordu; çizgi uzadıkça
-   maliyet büyüyor ve video sonlarına doğru kare hızı çöküyordu.
-   Artık geometri BİR KEZ yükleniyor, ilerleme yalnızca renk gradyanıyla veriliyor. */
-function revealGradient(color, p){
-  const CLR = color, TR = 'rgba(0,0,0,0)';
-  if(p >= 1)  return ['interpolate',['linear'],['line-progress'], 0, CLR, 1, CLR];
-  if(p <= 0)  return ['interpolate',['linear'],['line-progress'], 0, TR, 1, TR];
-  const a = Math.max(0.0005, Math.min(p, 0.9975));
-  const b = Math.min(a + 0.0015, 0.999);
-  return ['interpolate',['linear'],['line-progress'], 0, CLR, a, CLR, b, TR, 1, TR];
-}
-function setReveal(layerIds, colorFor, p){
-  layerIds.forEach(id=>{
-    if(!map.getLayer(id)) return;
-    try{ map.setPaintProperty(id, 'line-gradient', revealGradient(colorFor(id), p)); }catch(e){}
-  });
-}
-
 /* ---------- GeoJSON normalize + yükle ---------- */
 function toFeatureCollection(data){
   let fc;
@@ -653,16 +634,13 @@ function loadParcel(geojson){
     });
   }catch(e){ traceLines=[]; }
 
-  map.addSource('trace',{type:'geojson',lineMetrics:true,data:{type:'FeatureCollection',features:[]}});
+  map.addSource('trace',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
   const _lw = parseFloat(lineWidth.value);
-  map.addLayer({id:'trace-glow2',type:'line',source:'trace',
-    paint:{'line-gradient':revealGradient(lineColor.value,0),'line-width':_lw*7,'line-opacity':0.16,'line-blur':6}});
+  // Performans: tek parıltı + çekirdek (4 katman yerine 2)
   map.addLayer({id:'trace-glow',type:'line',source:'trace',
-    paint:{'line-gradient':revealGradient(lineColor.value,0),'line-width':_lw*3.4,'line-opacity':0.4,'line-blur':3}});
+    paint:{'line-color':lineColor.value,'line-width':_lw*3.6,'line-opacity':0.45,'line-blur':3}});
   map.addLayer({id:'trace-line',type:'line',source:'trace',
-    paint:{'line-gradient':revealGradient(lineColor.value,0),'line-width':_lw*1.4,'line-opacity':0.95,'line-blur':0.8}});
-  map.addLayer({id:'trace-core',type:'line',source:'trace',
-    paint:{'line-gradient':revealGradient('#ffffff',0),'line-width':Math.max(_lw*0.5,1),'line-opacity':0.9,'line-blur':0.4}});
+    paint:{'line-color':lineColor.value,'line-width':_lw*1.5,'line-opacity':0.98,'line-blur':0.6}});
 
   hasParcel=true;
 
@@ -816,10 +794,8 @@ lineWidth.oninput=()=>{
   lwVal.textContent=lineWidth.value+'px';
   const w=parseFloat(lineWidth.value);
   if(map.getLayer('parcel-line')) map.setPaintProperty('parcel-line','line-width',w);
-  if(map.getLayer('trace-glow2')) map.setPaintProperty('trace-glow2','line-width',w*7);
-  if(map.getLayer('trace-glow')) map.setPaintProperty('trace-glow','line-width',w*3.4);
-  if(map.getLayer('trace-line')) map.setPaintProperty('trace-line','line-width',w*1.4);
-  if(map.getLayer('trace-core')) map.setPaintProperty('trace-core','line-width',Math.max(w*0.5,1));
+  if(map.getLayer('trace-glow')) map.setPaintProperty('trace-glow','line-width',w*3.6);
+  if(map.getLayer('trace-line')) map.setPaintProperty('trace-line','line-width',w*1.5);
 };
 
 /* ---------- Yeni Nesil Sinematik Drone Turu ---------- */
@@ -869,8 +845,8 @@ function orbit(){
 
 /* ---------- Lazer sınır çizimi ---------- */
 let traceLines = [];
-const TRACE_LAYERS = ['trace-glow2','trace-glow','trace-line','trace-core'];
-const HLTRACE_LAYERS = ['hltrace-glow2','hltrace-glow','hltrace-line','hltrace-core'];
+const TRACE_LAYERS = ['trace-glow','trace-line'];
+const HLTRACE_LAYERS = ['hltrace-glow','hltrace-line'];
 function setTraceVisible(on){
   if(!map.getLayer('parcel-line')) return;
   map.setPaintProperty('parcel-line','line-opacity', on?0:1);
@@ -884,33 +860,34 @@ function setTraceVisible(on){
   });
 }
 let traceLastUpd = 0, traceDone = false, traceFull = [];
-const TRACE_COLOR = id => id==='trace-core' ? '#ffffff' : lineColor.value;
-const HLTRACE_COLOR = id => id==='hltrace-core' ? '#ffffff' : hlColor.value;
 
 function updateTrace(progress){
   if(!traceChk.checked || !traceLines.length || !map.getSource('trace')) return;
   if(traceDone) return;
   const now = Date.now();
-  if(now - traceLastUpd < 40 && progress < 1) return;
+  if(now - traceLastUpd < 110 && progress < 1) return;   // ~9 güncelleme/sn: göze akıcı, yük düşük
   traceLastUpd = now;
-  const p = Math.min(Math.max(progress,0),1);
+  const p = Math.min(Math.max(progress,0.0001),1);
   if(p >= 1) traceDone = true;
 
-  // dolgu da sıfırdan görünür hale gelsin
   if(map.getLayer('parcel-fill')) map.setPaintProperty('parcel-fill','fill-opacity', parseFloat(opacity.value)*p);
-  setReveal(TRACE_LAYERS, TRACE_COLOR, p);
 
-  // hisse vurgusu
+  const feats=[];
+  traceLines.forEach(t=>{ const sg=sliceFast(t.prep,0,Math.max(t.len*p,0.0005)); if(sg) feats.push(sg); });
+  map.getSource('trace').setData({type:'FeatureCollection',features:feats});
+
   if(hlTraceLines.length && map.getSource('hltrace')){
     if(map.getLayer('hl-fill')) map.setPaintProperty('hl-fill','fill-opacity', 0.45*p);
-    setReveal(HLTRACE_LAYERS, HLTRACE_COLOR, p);
+    const hf=[];
+    hlTraceLines.forEach(t=>{ const sg=sliceFast(t.prep,0,Math.max(t.len*p,0.0005)); if(sg) hf.push(sg); });
+    map.getSource('hltrace').setData({type:'FeatureCollection',features:hf});
   }
 }
 function resetTrace(){
+  if(map.getSource('trace')) map.getSource('trace').setData({type:'FeatureCollection',features:[]});
+  if(map.getSource('hltrace')) map.getSource('hltrace').setData({type:'FeatureCollection',features:[]});
   if(map.getLayer('parcel-fill')) map.setPaintProperty('parcel-fill','fill-opacity', parseFloat(opacity.value));
   if(map.getLayer('hl-fill')) map.setPaintProperty('hl-fill','fill-opacity', 0.45);
-  setReveal(TRACE_LAYERS, TRACE_COLOR, 0);
-  setReveal(HLTRACE_LAYERS, HLTRACE_COLOR, 0);
   setTraceVisible(false);
   resetRoads();
 }
@@ -942,13 +919,11 @@ orbitBtn.onclick=()=>{
     if(traceChk.checked && traceLines.length){
       setTraceVisible(true);
       if(map.getLayer('parcel-fill')) map.setPaintProperty('parcel-fill','fill-opacity',0);
-      // GEOMETRİ BİR KEZ: animasyon boyunca bir daha veri basılmayacak
-      if(map.getSource('trace')) map.getSource('trace').setData({type:'FeatureCollection',features:traceFull});
-      if(map.getSource('hltrace') && hlFullLine) map.getSource('hltrace').setData({type:'FeatureCollection',features:[hlFullLine]});
       traceLastUpd = 0; updateTrace(0.0001);
     }
-    if(roadChk.checked && roadFull.length && map.getSource('roads')){
-      roadLastUpd = 0; roadDone = false; setReveal(ROAD_LAYERS, ROAD_COLOR, 0);
+    if(roadChk.checked && roadLines.length && map.getSource('roads')){
+      roadLastUpd = 0; roadDone = false;
+      map.getSource('roads').setData({type:'FeatureCollection',features:[]});
     }
     map.easeTo({pitch:initialPitch,duration:600}); 
     orbit(); 
@@ -1049,7 +1024,7 @@ function startRecording(restore){
     requestAnimationFrame(frame);
     // Video 30 fps; ekran 60/120 Hz olsa da fazladan çizim yapma (CPU yarıya iner)
     const now=performance.now();
-    if(now - lastDraw < 31) return;
+    if(now - lastDraw < 41) return;   // 24 fps
     lastDraw = now;
     try{
       const w=mapCanvas.width, h=mapCanvas.height;
@@ -1098,7 +1073,7 @@ function startRecording(restore){
   const fail = (msg)=>{ compositing=false; if(restore) restore(); recBadge.style.display='none'; recordBtn.disabled=false; alert(msg); };
 
   let stream;
-  try{ stream = rc.captureStream(30); }
+  try{ stream = rc.captureStream(24); }
   catch(e){ fail('Tarayıcın otomatik kaydı desteklemiyor. Ekran kaydını kullan.'); return; }
 
   const candidates = ['video/mp4;codecs=avc1.42E01E','video/mp4','video/webm;codecs=vp9','video/webm'];
@@ -1106,7 +1081,7 @@ function startRecording(restore){
   const ext = mime.indexOf('mp4')>-1 ? 'mp4' : 'webm';
   const outType = ext==='mp4' ? 'video/mp4' : 'video/webm';
 
-  try{ mediaRec = new MediaRecorder(stream, mime ? {mimeType:mime,videoBitsPerSecond:10000000} : {videoBitsPerSecond:10000000}); }
+  try{ mediaRec = new MediaRecorder(stream, mime ? {mimeType:mime,videoBitsPerSecond:8000000} : {videoBitsPerSecond:8000000}); }
   catch(e){ fail('Kayıt başlatılamadı. Ekran kaydını kullan.'); return; }
 
   recChunks=[];
@@ -1285,23 +1260,20 @@ let roadLines = [], roadBusy = false;
 
 function roadEnsureLayers(){
   if(map.getSource('roads')) return;
-  map.addSource('roads',{type:'geojson',lineMetrics:true,data:{type:'FeatureCollection',features:[]},
+  map.addSource('roads',{type:'geojson',data:{type:'FeatureCollection',features:[]},
     attribution:'Yollar © OpenStreetMap katkıcıları (ODbL)'});
   const before = map.getLayer('parcel-fill') ? 'parcel-fill' : undefined;
   // geniş yumuşak hale
-  map.addLayer({id:'road-glow',type:'line',source:'roads',
-    layout:{'line-cap':'round','line-join':'round'},
-    paint:{'line-gradient':revealGradient(roadColor.value,0),'line-width':26,'line-opacity':0.18,'line-blur':10}}, before);
   // saydam bant (yolun içi)
   map.addLayer({id:'road-band',type:'line',source:'roads',
     layout:{'line-cap':'round','line-join':'round'},
-    paint:{'line-gradient':revealGradient(roadColor.value,0),'line-width':13,'line-opacity':0.42,'line-blur':1.5}}, before);
+    paint:{'line-color':roadColor.value,'line-width':13,'line-opacity':0.45,'line-blur':2}}, before);
   // parlak çekirdek
   map.addLayer({id:'road-core',type:'line',source:'roads',
     layout:{'line-cap':'round','line-join':'round'},
-    paint:{'line-gradient':revealGradient('#ffffff',0),'line-width':2.2,'line-opacity':0.75,'line-blur':0.6}}, before);
+    paint:{'line-color':'#ffffff','line-width':2.2,'line-opacity':0.8,'line-blur':0.6}}, before);
 }
-const ROAD_LAYERS = ['road-glow','road-band','road-core'];
+const ROAD_LAYERS = ['road-band','road-core'];
 
 async function fetchRoads(){
   if(!hasParcel){ alert('Önce bir parsel yükle.'); return; }
@@ -1365,12 +1337,12 @@ async function fetchRoads(){
     roadLines = feats.map(f=>{
       let anchor=0, prep=null;
       try{
-        prep = prepLine(thinCoords(f.geometry.coordinates, 220));
+        prep = prepLine(thinCoords(f.geometry.coordinates, 120));
         const np = turf.nearestPointOnLine(f, ctr);
         anchor = Math.min(Math.max(np.properties.location || 0, 0), prep.len);
       }catch(e){}
       return {line:f, prep:prep, len:prep?prep.len:0, anchor};
-    }).filter(t=>t.prep && t.len>0).sort((a,b)=>b.len-a.len).slice(0,16);
+    }).filter(t=>t.prep && t.len>0).sort((a,b)=>b.len-a.len).slice(0,8);
 
     // Her yolu parsele en yakın noktadan ikiye böl: iki parça da baştan uca doğru
     // açılınca, çizim parselin yanından iki yöne yayılıyormuş gibi görünür.
@@ -1389,9 +1361,7 @@ async function fetchRoads(){
     roadChk.checked = true;
     setRoadVisible(true);
     // tur çalışmıyorsa tamamını göster
-    map.getSource('roads').setData({type:'FeatureCollection',features:roadFull});
-    roadShown = orbiting ? 0 : 1;
-    setReveal(ROAD_LAYERS, ROAD_COLOR, roadShown);
+    if(!orbiting) resetRoads();
     const names=[...new Set(roadLines.map(t=>t.line.properties.name).filter(Boolean))].slice(0,4);
     roadInfo.innerHTML = roadLines.length+' yol bulundu'+(names.length? ' · '+names.join(', ') : '');
   }catch(e){
@@ -1414,20 +1384,26 @@ function setRoadVisible(on){
   });
 }
 function updateRoads(progress){
-  if(!roadChk.checked || !roadFull.length || !map.getSource('roads')) return;
+  if(!roadChk.checked || !roadLines.length || !map.getSource('roads')) return;
   if(roadDone) return;
   const now = Date.now();
-  if(now - roadLastUpd < 40 && progress < 1) return;
+  if(now - roadLastUpd < 200 && progress < 1) return;   // yollar seyrek güncellenir
   roadLastUpd = now;
-  const p = Math.min(Math.max(progress,0),1);
+  const p = Math.min(Math.max(progress,0.0001),1);
   if(p >= 1) roadDone = true;
-  roadShown = p;
-  setReveal(ROAD_LAYERS, ROAD_COLOR, p);
+  const feats=[];
+  roadLines.forEach(t=>{
+    const a=t.anchor||0;
+    const st=Math.max(a-a*p,0), en=Math.min(a+(t.len-a)*p,t.len);
+    const sg=sliceFast(t.prep, Math.min(st,Math.max(en-0.004,0)), Math.max(en,Math.min(st+0.004,t.len)));
+    if(sg) feats.push(sg);
+  });
+  map.getSource('roads').setData({type:'FeatureCollection',features:feats});
 }
 function resetRoads(){
   if(!map.getSource('roads')) return;
-  roadShown = roadChk.checked ? 1 : 0;
-  setReveal(ROAD_LAYERS, ROAD_COLOR, roadShown);
+  map.getSource('roads').setData({type:'FeatureCollection',
+    features: roadChk.checked ? roadLines.map(t=>sliceFast(t.prep,0,t.len)).filter(Boolean) : []});
   setRoadVisible(true);
 }
 
@@ -1437,7 +1413,9 @@ roadChk.onchange = ()=>{
   setRoadVisible(true);
   if(!orbiting) resetRoads();
 };
-roadColor.oninput = ()=>{ setReveal(ROAD_LAYERS, ROAD_COLOR, roadShown); };
+roadColor.oninput = ()=>{
+  if(map.getLayer('road-band')) map.setPaintProperty('road-band','line-color',roadColor.value);
+};
 
 /* ---------- Hisse / Bölüm Vurgulama (elle çizim) ---------- */
 let hlDrawing=false, hlPts=[], hlTraceLines=[], hlFullLine=null;
@@ -1450,16 +1428,12 @@ function hlEnsureLayers(){
       paint:{'line-color':hlColor.value,'line-width':3,'line-dasharray':[2,1.2]}});
   }
   if(!map.getSource('hltrace')){
-    map.addSource('hltrace',{type:'geojson',lineMetrics:true,data:{type:'FeatureCollection',features:[]}});
-    map.addLayer({id:'hltrace-glow2',type:'line',source:'hltrace',
-      paint:{'line-gradient':revealGradient(hlColor.value,0),'line-width':21,'line-opacity':0.16,'line-blur':6}});
+    map.addSource('hltrace',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
     map.addLayer({id:'hltrace-glow',type:'line',source:'hltrace',
-      paint:{'line-gradient':revealGradient(hlColor.value,0),'line-width':10,'line-opacity':0.4,'line-blur':3}});
+      paint:{'line-color':hlColor.value,'line-width':10,'line-opacity':0.45,'line-blur':3}});
     map.addLayer({id:'hltrace-line',type:'line',source:'hltrace',
-      paint:{'line-gradient':revealGradient(hlColor.value,0),'line-width':4.2,'line-opacity':0.95,'line-blur':0.8}});
-    map.addLayer({id:'hltrace-core',type:'line',source:'hltrace',
-      paint:{'line-gradient':revealGradient('#ffffff',0),'line-width':1.6,'line-opacity':0.9,'line-blur':0.4}});
-  }
+      paint:{'line-color':hlColor.value,'line-width':4.2,'line-opacity':0.98,'line-blur':0.6}});
+    }
   if(!map.getSource('hlTrace')){
     map.addSource('hlTrace',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
     const w=3;
