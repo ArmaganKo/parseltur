@@ -860,12 +860,14 @@ function setTraceVisible(on){
     if(map.getLayer(id)) map.setLayoutProperty(id,'visibility', on?'visible':'none');
   });
 }
-let traceLastUpd = 0;
+let traceLastUpd = 0, traceDone = false;
 function updateTrace(progress){
   if(!traceChk.checked || !traceLines.length || !map.getSource('trace')) return;
+  if(traceDone) return;                    // tamamlandı: bir daha hesaplama
   const now = Date.now();
   if(now - traceLastUpd < 66 && progress < 1) return;   // ~15 fps: görsel fark yok, yük düşer
   traceLastUpd = now;
+  if(progress >= 1) traceDone = true;      // bu son çizim olacak
   const p = Math.min(Math.max(progress,0.0001),1);
   // dolgu da sıfırdan görünür hale gelsin (video boyunca yavaşça)
   if(map.getLayer('parcel-fill')) map.setPaintProperty('parcel-fill','fill-opacity', parseFloat(opacity.value)*p);
@@ -900,6 +902,7 @@ orbitBtn.onclick=()=>{
   orbitBtn.textContent = orbiting ? '⏹ Drone Turunu Durdur' : '🚁 Drone Turu Başlat';
   if(orbiting){ 
     tourStart = Date.now();
+    traceDone = false; roadDone = false;
     startBearing = map.getBearing();
     initialZoom = map.getZoom();
     initialPitch = Math.min(Math.max(parseFloat(pitch.value),58),68);
@@ -1083,7 +1086,7 @@ function startRecording(restore){
   const ext = mime.indexOf('mp4')>-1 ? 'mp4' : 'webm';
   const outType = ext==='mp4' ? 'video/mp4' : 'video/webm';
 
-  try{ mediaRec = new MediaRecorder(stream, mime ? {mimeType:mime,videoBitsPerSecond:16000000} : {videoBitsPerSecond:16000000}); }
+  try{ mediaRec = new MediaRecorder(stream, mime ? {mimeType:mime,videoBitsPerSecond:10000000} : {videoBitsPerSecond:10000000}); }
   catch(e){ fail('Kayıt başlatılamadı. Ekran kaydını kullan.'); return; }
 
   recChunks=[];
@@ -1367,12 +1370,14 @@ function setRoadVisible(on){
     if(map.getLayer(id)) map.setLayoutProperty(id,'visibility', (on && roadChk.checked) ? 'visible':'none');
   });
 }
-let roadLastUpd = 0;
+let roadLastUpd = 0, roadDone = false;
 function updateRoads(progress){
   if(!roadChk.checked || !roadLines.length || !map.getSource('roads')) return;
+  if(roadDone) return;                     // tamamlandı: bir daha hesaplama
   const now = Date.now();
-  if(now - roadLastUpd < 120) return;  // yollar daha seyrek güncellenir
+  if(now - roadLastUpd < 120 && progress < 1) return;  // yollar daha seyrek güncellenir
   roadLastUpd = now;
+  if(progress >= 1) roadDone = true;
   const p = Math.min(Math.max(progress,0.0001),1);
   const feats=[];
   roadLines.forEach(t=>{
