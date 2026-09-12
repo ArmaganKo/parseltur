@@ -807,8 +807,14 @@ let startBearing = 0;
 let initialZoom = 15;
 let initialPitch = 65;
 
+let orbitLastMove = 0;
 function orbit(){ 
   if(!orbiting)return; 
+  raf=requestAnimationFrame(orbit);
+  // Kamerayı 60 değil ~30 kez/sn güncelle: harita yarı yükle çizer, hareket yine akıcı
+  const _now = performance.now();
+  if(_now - orbitLastMove < 33) return;
+  orbitLastMove = _now;
 
   const mode = document.getElementById('tourType').value;
   const totalSeconds = parseInt(document.getElementById('recLen').value, 10) || 57;
@@ -839,8 +845,6 @@ function orbit(){
   const traceProgress = Math.min(elapsed / Math.max(totalSeconds - early, 1), 1);
   updateTrace(traceProgress);
   updateRoads(traceProgress);
-
-  raf=requestAnimationFrame(orbit); 
 }
 
 /* ---------- Lazer sınır çizimi ---------- */
@@ -1019,6 +1023,7 @@ function startRecording(restore){
   let compositing=true;
   let blackChecked=false;
   let lastDraw=0;
+  let fpsFrames=0, fpsT0=performance.now(), degraded=false;
   (function frame(){
     if(!compositing) return;
     requestAnimationFrame(frame);
@@ -1034,10 +1039,22 @@ function startRecording(restore){
         rctx.fillStyle='#0b1a1f'; rctx.fillRect(0,0,W,H);
         rctx.drawImage(mapCanvas, (W-dw)/2, (H-dh)/2, dw, dh);
         drawOverlay(rctx,W,H);
+        fpsFrames++;
       }
-      map.triggerRepaint();   // harita sürekli çizilsin, kare donmasın
     }catch(e){}
   })();
+
+  // Kare hızı izleme: düşerse ışın/yol animasyonunu dondurup videoyu kurtar
+  const fpsWatch = setInterval(()=>{
+    if(!compositing){ clearInterval(fpsWatch); return; }
+    const dt=(performance.now()-fpsT0)/1000, fps=fpsFrames/dt;
+    fpsFrames=0; fpsT0=performance.now();
+    if(!degraded && fps>0 && fps<16){
+      degraded=true;
+      try{ traceDone=true; roadDone=true; }catch(e){}   // animasyonları dondur, kamera dönmeye devam etsin
+      console.warn('Kare hızı düştü ('+fps.toFixed(1)+' fps) — çizim animasyonları donduruldu.');
+    }
+  }, 2000);
 
   // 1,5 sn sonra kareyi kontrol et: tamamen siyahsa kullanıcıyı uyar
   setTimeout(()=>{
