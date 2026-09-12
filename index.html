@@ -1024,12 +1024,25 @@ function startRecording(restore){
   let compositing=true;
   let blackChecked=false;
   let lastDraw=0;
-  (function frame(){
+  const VIDEO_FPS = 30;
+  const FRAME_MS = 1000 / VIDEO_FPS;
+  let videoTrack = null;
+
+  // Kayıt canvas'ını 30 FPS'e sabitle. captureStream(0) + requestFrame(),
+  // tarayıcının ana thread'i yoğunken kare zamanlamasının bozulmasını önler.
+  let captureStream = null;
+  try {
+    captureStream = rc.captureStream(0);
+    videoTrack = captureStream.getVideoTracks()[0] || null;
+  } catch(e) {
+    captureStream = null;
+  }
+
+  (function frame(now){
     if(!compositing) return;
     requestAnimationFrame(frame);
-    // Video 30 fps; ekran 60/120 Hz olsa da fazladan çizim yapma (CPU yarıya iner)
-    const now=performance.now();
-    if(now - lastDraw < 31) return;
+    if(!lastDraw) lastDraw = now;
+    if(now - lastDraw < FRAME_MS) return;
     lastDraw = now;
     try{
       const w=mapCanvas.width, h=mapCanvas.height;
@@ -1039,10 +1052,15 @@ function startRecording(restore){
         rctx.fillStyle='#0b1a1f'; rctx.fillRect(0,0,W,H);
         rctx.drawImage(mapCanvas, (W-dw)/2, (H-dh)/2, dw, dh);
         drawOverlay(rctx,W,H);
+
+        // captureStream(0) ile yalnızca gerçekten çizilmiş kareyi encoder'a ver.
+        if(videoTrack && typeof videoTrack.requestFrame === 'function'){
+          videoTrack.requestFrame();
+        }
       }
-      map.triggerRepaint();   // harita sürekli çizilsin, kare donmasın
+      map.triggerRepaint();
     }catch(e){}
-  })();
+  });
 
   // 1,5 sn sonra kareyi kontrol et: tamamen siyahsa kullanıcıyı uyar
   setTimeout(()=>{
@@ -1077,9 +1095,11 @@ function startRecording(restore){
   const beginRecording = ()=>{
   const fail = (msg)=>{ compositing=false; if(restore) restore(); recBadge.style.display='none'; recordBtn.disabled=false; alert(msg); };
 
-  let stream;
-  try{ stream = rc.captureStream(30); }
-  catch(e){ fail('Tarayıcın otomatik kaydı desteklemiyor. Ekran kaydını kullan.'); return; }
+  let stream = captureStream;
+  if(!stream){
+    try{ stream = rc.captureStream(30); }
+    catch(e){ fail('Tarayıcın otomatik kaydı desteklemiyor. Ekran kaydını kullan.'); return; }
+  }
 
   const candidates = ['video/mp4;codecs=avc1.42E01E','video/mp4','video/webm;codecs=vp9','video/webm'];
   let mime=''; for(const t of candidates){ try{ if(MediaRecorder.isTypeSupported(t)){ mime=t; break; } }catch(e){} }
