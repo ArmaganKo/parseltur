@@ -455,6 +455,9 @@ try{ document.body.classList.add('loaded'); }catch(e){}
 const map = new maplibregl.Map({
   container:'map',
   preserveDrawingBuffer:true,
+  fadeDuration:0,            // tile solma animasyonu sürekli yeniden çizim yaptırıyordu
+  maxTileCacheSize:60,       // bellek şişmesini önle (uzun videolarda çöküşe yol açıyordu)
+  refreshExpiredTiles:false,
   pixelRatio: Math.min(window.devicePixelRatio||1, 2),
   maxPitch:85,
   pitch:65,
@@ -994,8 +997,12 @@ recordBtn.onclick=()=>{
 
   const margin=30;
   let availH=window.innerHeight-margin*2, availW=window.innerWidth-margin*2;
+  // Kayıt penceresini sınırla: gereğinden büyük çizim alanı kare hızını düşürüyor
+  const CAP = (ratioSel.value==='9:16') ? 760 : 1180;
   let bh=availH, bw=bh*aspect;
   if(bw>availW){ bw=availW; bh=bw/aspect; }
+  if(bw>CAP){ bw=CAP; bh=bw/aspect; }
+  if(bh>CAP*1.35){ bh=CAP*1.35; bw=bh*aspect; }
   mapEl.style.right='auto'; mapEl.style.bottom='auto';
   mapEl.style.width=Math.round(bw)+'px'; mapEl.style.height=Math.round(bh)+'px';
   mapEl.style.left=Math.round((window.innerWidth-bw)/2)+'px';
@@ -1015,8 +1022,8 @@ function startRecording(restore){
   const mapCanvas = map.getCanvas();
 
   // Sabit çıktı çözünürlüğü — ekrandan bağımsız, her cihazda aynı kalite
-  const RES_MAP = {'16:9':[1920,1080], '9:16':[1080,1920], '1:1':[1080,1080]};
-  const [W,H] = RES_MAP[ratioSel.value] || [1920,1080];
+  const RES_MAP = {'16:9':[1280,720], '9:16':[720,1280], '1:1':[900,900]};
+  const [W,H] = RES_MAP[ratioSel.value] || [1280,720];
   const rc = document.createElement('canvas'); rc.width=W; rc.height=H;
   const rctx = rc.getContext('2d');
 
