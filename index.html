@@ -29,6 +29,13 @@
 <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7.1.0/turf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.1/build/mp4-muxer.js"></script>
+<script>
+  // Yedek kaynak: ana CDN yüklenmezse akıcı mod devre dışı kalmasın
+  if (typeof Mp4Muxer === 'undefined') {
+    document.write('<script src="https://unpkg.com/mp4-muxer@5.2.1/build/mp4-muxer.js"><\/script>');
+  }
+</script>
 
 <style>
   :root{
@@ -257,6 +264,9 @@
         <label class="fld">Çizgi kalınlığı · <span id="lwVal">3px</span></label>
         <input type="range" id="lineWidth" min="1" max="8" step="0.5" value="3" />
         <label class="switch" style="margin-top:8px"><input type="checkbox" id="traceChk" checked /> <span>✨ Lazer sınır çizimi</span></label>
+        <label class="switch" style="margin-top:8px"><input type="checkbox" id="smoothChk" checked /> <span>🎞 Akıcı mod (kare kare üretim — önerilen)</span></label>
+        <p class="hint" style="opacity:.85">Akıcı mod videoyu kare kare üretir: bilgisayar yavaş olsa bile video hiç takılmaz. Üretim, videonun süresinden biraz uzun sürebilir. Kapatırsanız eski (gerçek zamanlı) yöntem kullanılır.</p>
+        <p class="hint" style="margin-top:4px">Açıkken video gerçek zamanlı kaydedilmez; her kare tek tek üretilir. Hazırlanması biraz uzun sürer ama takılma/donma olmaz.</p>
 
         <div class="adv-sec">Parsel vurguları</div>
         <p class="hint" style="margin-top:0">Parselin içinde bir bölümü (örn. hisseye karşılık gelen fiilî kısmı) elle çiz. Haritaya <b>tıklayarak köşe ekle</b>, <b>çift tıkla bitir</b>.</p>
@@ -811,41 +821,41 @@ let initialZoom = 15;
 let initialPitch = 65;
 
 let orbitLastMove = 0;
-function orbit(){ 
-  if(!orbiting)return; 
-  raf=requestAnimationFrame(orbit);
-  // Kamerayı 60 değil ~30 kez/sn güncelle: harita yarı yükle çizer, hareket yine akıcı
-  const _now = performance.now();
-  if(_now - orbitLastMove < 33) return;
-  orbitLastMove = _now;
 
+// Belirli bir "geçen süre" için kamerayı konumlandırır.
+// Hem canlı tur hem kare kare üretim aynı fonksiyonu kullanır → görüntü birebir aynı.
+function applyCameraAt(elapsed){
   const mode = document.getElementById('tourType').value;
   const totalSeconds = parseInt(document.getElementById('recLen').value, 10) || 57;
-  const elapsed = (Date.now() - tourStart) / 1000;        // gerçek geçen süre (sn)
-  const progress = Math.min(elapsed / totalSeconds, 1);   // 0 → 1, tam süreye yayılır
+  const progress = Math.min(elapsed / totalSeconds, 1);
 
-  // dönüş — zamana bağlı (kare hızından bağımsız, hep aynı hızda)
   map.setBearing(startBearing + elapsed * DEG_PER_SEC);
 
   if (mode === 'helix') {
-    // dönerek uzaklaş + yüksel (zaten geniş biter)
     map.setZoom(initialZoom - (progress * 1.3));
     map.setPitch(Math.max(initialPitch - (progress * 18), 45));
   } else if (mode === 'dive') {
-    // önce yaklaşır sonra geri açılır: video parseli ve çevresini görerek biter
-    const dz = Math.sin(progress * Math.PI) * 0.9;   // ortada +0.9, başta/sonda 0
+    const dz = Math.sin(progress * Math.PI) * 0.9;
     map.setZoom(Math.min(initialZoom + dz, imgMaxZoom-0.3));
     map.setPitch(Math.max(initialPitch - (progress * 10), 52));
   } else {
-    // klasik dönüş — çok hafif yakınlaş, sonra düzelt; hep yukarıdan bakar
-    const dz = Math.sin(progress * Math.PI) * 0.4;   // en fazla +0.4, sonda 0'a döner
+    const dz = Math.sin(progress * Math.PI) * 0.4;
     map.setZoom(initialZoom + dz);
     map.setPitch(Math.max(initialPitch - (progress * 6), 54));
   }
 
-  // Işın videodan önce tamamlansın: 15sn→5sn erken, 30sn→10sn, 57/90sn→15sn erken
   const early = totalSeconds<=15 ? 5 : (totalSeconds<=30 ? 10 : 15);
-  const traceProgress = Math.min(elapsed / Math.max(totalSeconds - early, 1), 1);
+  return Math.min(elapsed / Math.max(totalSeconds - early, 1), 1);
+}
+
+function orbit(){ 
+  if(!orbiting)return; 
+  raf=requestAnimationFrame(orbit);
+  const _now = performance.now();
+  if(_now - orbitLastMove < 33) return;
+  orbitLastMove = _now;
+  const elapsed = (Date.now() - tourStart) / 1000;
+  const traceProgress = applyCameraAt(elapsed);
   updateTrace(traceProgress);
   updateRoads(traceProgress);
 }
@@ -860,19 +870,19 @@ function setTraceVisible(on){
   TRACE_LAYERS.forEach(id=>{
     if(map.getLayer(id)) map.setLayoutProperty(id,'visibility', on?'visible':'none');
   });
-  // vurgu (hisse) bölümü de aynı şekilde
   if(map.getLayer('hl-line')) map.setPaintProperty('hl-line','line-opacity', on?0:1);
   HLTRACE_LAYERS.forEach(id=>{
     if(map.getLayer(id)) map.setLayoutProperty(id,'visibility', on?'visible':'none');
   });
 }
+
 let traceLastUpd = 0, traceDone = false, traceFull = [];
 
 function updateTrace(progress){
   if(!traceChk.checked || !traceLines.length || !map.getSource('trace')) return;
   if(traceDone) return;
   const now = Date.now();
-  if(now - traceLastUpd < 110 && progress < 1) return;   // ~9 güncelleme/sn: göze akıcı, yük düşük
+  if(now - traceLastUpd < 110 && progress < 1) return;
   traceLastUpd = now;
   const p = Math.min(Math.max(progress,0.0001),1);
   if(p >= 1) traceDone = true;
@@ -890,6 +900,7 @@ function updateTrace(progress){
     map.getSource('hltrace').setData({type:'FeatureCollection',features:hf});
   }
 }
+
 function resetTrace(){
   if(map.getSource('trace')) map.getSource('trace').setData({type:'FeatureCollection',features:[]});
   if(map.getSource('hltrace')) map.getSource('hltrace').setData({type:'FeatureCollection',features:[]});
@@ -975,6 +986,132 @@ function drawOverlay(ctx,w,h){
   if(phone){ ctx.font=`500 ${fs2}px "Segoe UI",system-ui,sans-serif`; ctx.fillText(phone,tx,ty+Math.round(fs2*0.4)); }
 }
 
+
+/* ================== KARE KARE VIDEO URETIMI (akici mod) ==================
+   Gercek zamanli kayitta makine yetisemezse kare atlaniyor ve video takiliyordu.
+   Bu yontemde her kare tek tek ciziliyor, harita o kareyi bitirene kadar
+   bekleniyor ve kare videoya sabit zaman damgasiyla ekleniyor.
+   Sonuc: makine ne kadar yavas olursa olsun video kusursuz akici olur. */
+function offlineSupported(){
+  return (typeof window.VideoEncoder === 'function') && (typeof window.Mp4Muxer === 'object');
+}
+
+function waitForMapRender(maxMs){
+  return new Promise(res=>{
+    let done=false;
+    const fin=()=>{ if(done) return; done=true; try{ map.off('idle', fin); }catch(e){} res(); };
+    map.once('idle', fin);
+    map.triggerRepaint();
+    setTimeout(fin, maxMs||260);
+  });
+}
+
+async function renderOffline(restore){
+  const FPS = 30;
+  const secs = parseInt(recLen.value,10) || 57;
+  const total = FPS * secs;
+  const RES = {'16:9':[1280,720], '9:16':[720,1280], '1:1':[900,900]};
+  const [W,H] = RES[ratioSel.value] || [1280,720];
+
+  const rc = document.createElement('canvas'); rc.width=W; rc.height=H;
+  const rctx = rc.getContext('2d');
+  const mapCanvas = map.getCanvas();
+
+  let muxer, encoder;
+  try{
+    muxer = new Mp4Muxer.Muxer({
+      target: new Mp4Muxer.ArrayBufferTarget(),
+      video: { codec:'avc', width:W, height:H },
+      fastStart:'in-memory'
+    });
+    encoder = new VideoEncoder({
+      output:(chunk,meta)=>{ try{ muxer.addVideoChunk(chunk,meta); }catch(e){} },
+      error:(e)=>console.error('encoder', e)
+    });
+    encoder.configure({ codec:'avc1.4d0028', width:W, height:H, bitrate:9000000, framerate:FPS });
+  }catch(e){
+    if(restore) restore();
+    recBadge.style.display='none'; recordBtn.disabled=false;
+    alert('Kare kare uretim baslatilamadi. Gelismis ayarlardan "Akici mod"u kapatip tekrar deneyin.');
+    return;
+  }
+
+  if(orbiting){ orbiting=false; cancelAnimationFrame(raf); orbitBtn.textContent='\u{1F441} Onizleme'; }
+  tourStart = Date.now();
+  startBearing = map.getBearing();
+  initialZoom = map.getZoom();
+  initialPitch = Math.min(Math.max(parseFloat(pitch.value),58),68);
+  traceDone=false; roadDone=false;
+  try{
+    const mode0=document.getElementById('tourType').value;
+    const peak=initialZoom + (mode0==='dive'?0.9:(mode0==='helix'?0:0.4));
+    if(!terrainChk.checked || peak>=17.3){ map.setTerrain(null); terrainOff=true; }
+  }catch(e){}
+  if(traceChk.checked && traceLines.length){
+    setTraceVisible(true);
+    if(map.getLayer('parcel-fill')) map.setPaintProperty('parcel-fill','fill-opacity',0);
+  }
+  if(roadChk.checked && roadLines.length && map.getSource('roads')){
+    map.getSource('roads').setData({type:'FeatureCollection',features:[]});
+  }
+
+  recBadge.style.display='block';
+  let cancelled=false;
+  const onEsc = (e)=>{ if(e.key==='Escape') cancelled=true; };
+  window.addEventListener('keydown', onEsc);
+
+  for(let i=0;i<total;i++){
+    if(cancelled) break;
+    const t = i / FPS;
+    const tp = applyCameraAt(t);
+    traceLastUpd = 0; roadLastUpd = 0;
+    updateTrace(tp);
+    updateRoads(tp);
+
+    await waitForMapRender(260);
+
+    try{
+      const w=mapCanvas.width, h=mapCanvas.height;
+      const sc=Math.max(W/w, H/h), dw=w*sc, dh=h*sc;
+      rctx.fillStyle='#0b1a1f'; rctx.fillRect(0,0,W,H);
+      rctx.drawImage(mapCanvas, (W-dw)/2, (H-dh)/2, dw, dh);
+      drawOverlay(rctx,W,H);
+    }catch(e){}
+
+    try{
+      const frame = new VideoFrame(rc, { timestamp: Math.round(i*1e6/FPS), duration: Math.round(1e6/FPS) });
+      encoder.encode(frame, { keyFrame: (i % (FPS*2) === 0) });
+      frame.close();
+    }catch(e){}
+
+    if(i % 5 === 0){
+      recBadge.textContent = '\u25CF Video uretiliyor... %' + Math.round(i/total*100) + '  (iptal: ESC)';
+      await new Promise(r=>setTimeout(r,0));
+    }
+    while(encoder.encodeQueueSize > 8){ await new Promise(r=>setTimeout(r,8)); }
+  }
+
+  window.removeEventListener('keydown', onEsc);
+  recBadge.textContent='\u25CF Video kapatiliyor...';
+  try{
+    await encoder.flush();
+    muxer.finalize();
+    const blob = new Blob([muxer.target.buffer], {type:'video/mp4'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url; a.download='parsel-tur.mp4'; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),2000);
+  }catch(e){
+    alert('Video kapatilirken sorun olustu. Lutfen tekrar deneyin.');
+  }
+
+  recBadge.style.display='none';
+  recordBtn.disabled=false;
+  if(restore) restore();
+  resetTrace();
+  if(typeof showResult==='function' && !cancelled) showResult();
+}
+
 /* ---------- Otomatik video kaydı (en-boy oranlı) ---------- */
 let mediaRec, recChunks=[];
 const RATIO_MAP = {'16:9':16/9, '9:16':9/16, '1:1':1};
@@ -1015,7 +1152,18 @@ recordBtn.onclick=()=>{
   recBadge.textContent='● Hazırlanıyor…';
 
   // çerçeve tam otursun diye fit animasyonundan (1400ms) sonra başlat
-  setTimeout(()=>startRecording(restore), 1600);
+  setTimeout(()=>{
+    const smooth = smoothChk ? smoothChk.checked : true;
+    if(smooth && offlineSupported()){
+      renderOffline(restore);
+    }else{
+      if(smooth){
+        console.warn('Akıcı mod kullanılamıyor (tarayıcı desteği veya kütüphane yüklenemedi) — klasik kayda geçiliyor.');
+        recBadge.textContent='● Klasik kayıt (akıcı mod desteklenmiyor)';
+      }
+      startRecording(restore);
+    }
+  }, 1600);
 };
 
 function startRecording(restore){
