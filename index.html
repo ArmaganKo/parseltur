@@ -996,14 +996,29 @@ function offlineSupported(){
   return (typeof window.VideoEncoder === 'function') && (typeof window.Mp4Muxer === 'object');
 }
 
-function waitForMapRender(maxMs){
+// Tek bir çizim turu bekle (hızlı). 'idle' beklemek tile'lar yüklenene kadar
+// sürüyordu ve kare başına ~0,26 sn'ye çıkıp üretimi çok yavaşlatıyordu.
+function waitOnePaint(maxMs){
   return new Promise(res=>{
     let done=false;
-    const fin=()=>{ if(done) return; done=true; try{ map.off('idle', fin); }catch(e){} res(); };
-    map.once('idle', fin);
+    const fin=()=>{ if(done) return; done=true; try{ map.off('render', fin); }catch(e){} res(); };
+    map.once('render', fin);
     map.triggerRepaint();
-    setTimeout(fin, maxMs||260);
+    setTimeout(fin, maxMs||60);
   });
+}
+// Kare hazır olana kadar bekle: normalde tek çizim yeter; görüntü parçaları
+// eksikse birkaç tur daha bekler ama üst sınırı aşmaz.
+async function waitForMapRender(){
+  await waitOnePaint(60);
+  let tries = 0;
+  while(tries < 3){
+    let loaded = true;
+    try{ loaded = map.areTilesLoaded(); }catch(e){}
+    if(loaded) break;
+    await waitOnePaint(45);
+    tries++;
+  }
 }
 
 async function renderOffline(restore){
@@ -1056,6 +1071,7 @@ async function renderOffline(restore){
   }
 
   recBadge.style.display='block';
+  const uretimT0 = Date.now();
   let cancelled=false;
   const onEsc = (e)=>{ if(e.key==='Escape') cancelled=true; };
   window.addEventListener('keydown', onEsc);
@@ -1068,7 +1084,7 @@ async function renderOffline(restore){
     updateTrace(tp);
     updateRoads(tp);
 
-    await waitForMapRender(260);
+    await waitForMapRender();
 
     try{
       const w=mapCanvas.width, h=mapCanvas.height;
@@ -1084,8 +1100,11 @@ async function renderOffline(restore){
       frame.close();
     }catch(e){}
 
-    if(i % 5 === 0){
-      recBadge.textContent = '\u25CF Video uretiliyor... %' + Math.round(i/total*100) + '  (iptal: ESC)';
+    if(i % 10 === 0){
+      const gecen = (Date.now()-uretimT0)/1000;
+      const kalan = i>0 ? Math.round(gecen/i*(total-i)) : 0;
+      recBadge.textContent = '● Video üretiliyor… %' + Math.round(i/total*100) +
+        (kalan? '  ·  ~'+(kalan>60? Math.ceil(kalan/60)+' dk':kalan+' sn')+' kaldı':'') + '  (iptal: ESC)';
       await new Promise(r=>setTimeout(r,0));
     }
     while(encoder.encodeQueueSize > 8){ await new Promise(r=>setTimeout(r,8)); }
