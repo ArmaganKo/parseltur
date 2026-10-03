@@ -718,10 +718,20 @@ function loadParcel(geojson){
       if(!f.geometry) return;
       const a = turf.area(f);
       if(!(a>0)) return;
-      let c=null, bb=null;
+      let c=null, bb=null, ring=null;
       try{ c = turf.centerOfMass(f).geometry.coordinates; }catch(e){ c = turf.center(f).geometry.coordinates; }
       try{ bb = turf.bbox(f); }catch(e){}
-      if(c) window.parcelLabels.push({lng:c[0], lat:c[1], m2:Math.round(a), bb:bb});
+      try{
+        const g=f.geometry; let cs=null;
+        if(g.type==='Polygon') cs = g.coordinates[0];
+        else if(g.type==='MultiPolygon'){
+          let best=null, bl=0;
+          g.coordinates.forEach(poly=>{ const r=poly&&poly[0]; if(r && r.length>bl){ bl=r.length; best=r; } });
+          cs = best;
+        }
+        if(cs && cs.length>2) ring = thinCoords(cs, 48);
+      }catch(e){}
+      if(c) window.parcelLabels.push({lng:c[0], lat:c[1], m2:Math.round(a), bb:bb, ring:ring});
     });
   }catch(e){}
   const m2 = Math.round(area);
@@ -1735,13 +1745,33 @@ function drawBanner(ctx,w,h,occ){
   return rect;
 }
 
+// Ekrana düşmüş parsel şeklinde, verilen yatay/dikey hat üzerindeki açıklık
+function _chord(poly, level, at, horizontal){
+  const hits=[];
+  for(let i=0;i<poly.length;i++){
+    const a=poly[i], b=poly[(i+1)%poly.length];
+    const a1 = horizontal ? a[1] : a[0], b1 = horizontal ? b[1] : b[0];
+    const a2 = horizontal ? a[0] : a[1], b2 = horizontal ? b[0] : b[1];
+    if((a1<=level && b1>level) || (b1<=level && a1>level)){
+      const t=(level-a1)/((b1-a1)||1);
+      hits.push(a2+(b2-a2)*t);
+    }
+  }
+  if(hits.length<2) return 0;
+  hits.sort((m,n)=>m-n);
+  for(let i=0;i+1<hits.length;i+=2){
+    if(at>=hits[i]-1 && at<=hits[i+1]+1) return hits[i+1]-hits[i];
+  }
+  return hits[hits.length-1]-hits[0];
+}
+
 function drawAreaLabels(ctx,w,h,project,occ){
   if(typeof areaChk==='undefined' || !areaChk.checked) return;
   const list = window.parcelLabels || [];
   if(!list.length) return;
   occ = occ || [];
   const fsBase = Math.max(Math.round(h*0.030), 13);
-  const fsMin  = Math.max(Math.round(h*0.015), 10);
+  const fsMin  = Math.max(Math.round(h*0.014), 10);
 
   list.forEach(p=>{
     let px, py;
@@ -1749,17 +1779,35 @@ function drawAreaLabels(ctx,w,h,project,occ){
     if(!isFinite(px) || !isFinite(py)) return;
     if(px < 0 || px > w || py < 0 || py > h) return;
 
-    // Parselin ekranda kapladığı alan — kamera yükseldikçe küçülür
+    // Parselin ekrandaki GERÇEK ölçüsü (döndürülmüş şekli de doğru ölçer)
     let pw = Infinity, ph = Infinity, top = py, bot = py;
-    if(p.bb){
+    let poly = null;
+    if(p.ring){
+      try{
+        poly = p.ring.map(project).filter(c=>isFinite(c[0]) && isFinite(c[1]));
+        if(poly.length < 3) poly = null;
+      }catch(e){ poly = null; }
+    }
+    if(poly){
+      const ys = poly.map(c=>c[1]);
+      top = Math.min.apply(null, ys); bot = Math.max.apply(null, ys);
+      // etiket yüksekliği boyunca en dar yeri baz al
+      const probe = fsBase*0.7;
+      pw = Math.min(
+        _chord(poly, py, px, true),
+        _chord(poly, py-probe, px, true) || Infinity,
+        _chord(poly, py+probe, px, true) || Infinity
+      );
+      ph = _chord(poly, px, py, false);
+      if(!isFinite(pw) || pw<=0) pw = 0;
+      if(!(ph>0)) ph = bot-top;
+    } else if(p.bb){
       try{
         const cs = [[p.bb[0],p.bb[1]],[p.bb[2],p.bb[1]],[p.bb[2],p.bb[3]],[p.bb[0],p.bb[3]]].map(project);
         const xs = cs.map(c=>c[0]), ys = cs.map(c=>c[1]);
-        if(xs.every(isFinite) && ys.every(isFinite)){
-          pw = Math.max.apply(null,xs) - Math.min.apply(null,xs);
-          ph = Math.max.apply(null,ys) - Math.min.apply(null,ys);
-          top = Math.min.apply(null,ys); bot = Math.max.apply(null,ys);
-        }
+        pw = (Math.max.apply(null,xs)-Math.min.apply(null,xs))*0.72;
+        ph = (Math.max.apply(null,ys)-Math.min.apply(null,ys))*0.72;
+        top = Math.min.apply(null,ys); bot = Math.max.apply(null,ys);
       }catch(e){}
     }
 
@@ -1775,23 +1823,26 @@ function drawAreaLabels(ctx,w,h,project,occ){
         ctx.font = `600 ${f2}px "Segoe UI",system-ui,sans-serif`;
         b = ctx.measureText(t2).width;
       }
-      return { bw: Math.max(a,b) + fs*1.2, bh: withT2 ? fs*2.35 : fs*1.55 };
+      return { bw: Math.max(a,b) + fs*1.1, bh: withT2 ? fs*2.35 : fs*1.55 };
     };
 
-    // Yazıyı parselin içine sığacak şekilde küçült
     let m = measure(fsBase, !!t2);
-    let scale = Math.min(1, (pw*0.88)/m.bw, (ph*0.55)/m.bh);
-    if(!isFinite(scale) || scale <= 0) scale = 1;
+    let scale = Math.min(1, (pw*0.92)/m.bw, (ph*0.60)/m.bh);
+    if(!isFinite(scale) || scale <= 0) scale = 0;
     let fs = Math.round(fsBase*scale);
-    if(t2 && fs < fsBase*0.74) t2 = '';          // dar alanda dönüm satırını bırak
+    if(t2 && fs < fsBase*0.78){ t2 = ''; m = measure(fsBase, false);
+      scale = Math.min(1, (pw*0.92)/m.bw, (ph*0.60)/m.bh);
+      if(!isFinite(scale) || scale<=0) scale=0;
+      fs = Math.round(fsBase*scale);
+    }
+    const tooSmall = fs < fsMin;                 // içine sığdıramadık
     fs = Math.min(Math.max(fs, fsMin), fsBase);
     m = measure(fs, !!t2);
     const bw = m.bw, bh = m.bh;
     const fs2 = Math.max(Math.round(fs*0.62), 9);
 
-    // Yine sığmıyorsa (parsel çok küçük kaldıysa) etiketi parselin hemen üstüne al
     let bx = px - bw/2, by = py - bh/2;
-    if(bw > pw*1.02){
+    if(tooSmall){                                 // parselin hemen üstüne al
       by = top - bh - Math.max(8, h*0.012);
       if(by < 8) by = bot + Math.max(8, h*0.012);
     }
