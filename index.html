@@ -137,6 +137,7 @@
 <body>
 
 <div id="map"></div>
+<canvas id="liveFx"></canvas>
 
 <div class="badge">Parsel Tur · 3D</div>
 <div id="recBadge">● Kaydediliyor…</div>
@@ -226,6 +227,45 @@
         <label class="fld">Danışman fotoğrafı</label>
         <button class="btn ghost small" id="ovPhotoBtn">📷 Fotoğraf Seç</button>
         <input type="file" id="ovPhotoInput" accept="image/*" hidden />
+      </div>
+    </div>
+
+    <div class="opt-card">
+      <label class="switch"><input type="checkbox" id="bannerChk" /> <span>Videoya başlık yazısı ekle</span></label>
+      <div id="bannerFields" style="display:none">
+        <label class="fld">Hazır başlıklar</label>
+        <select id="bannerPreset">
+          <option value="SATILIK ARSA" selected>SATILIK ARSA</option>
+          <option value="SATILIK ARAZİ">SATILIK ARAZİ</option>
+          <option value="SATILIK TARLA">SATILIK TARLA</option>
+          <option value="SATILIK BAĞ / BAHÇE">SATILIK BAĞ / BAHÇE</option>
+          <option value="KİRALIK ARSA">KİRALIK ARSA</option>
+          <option value="YATIRIMLIK FIRSAT">YATIRIMLIK FIRSAT</option>
+          <option value="__custom">Kendim yazacağım…</option>
+        </select>
+        <label class="fld">Başlık yazısı</label>
+        <input type="text" id="bannerText" value="SATILIK ARSA" placeholder="Örn. SATILIK ARSA" />
+        <div class="inline" style="margin-top:10px"><span>Şerit rengi</span><input type="color" id="bannerBg" value="#e11d48" /></div>
+        <p class="hint">Yazı videonun üst ortasında şerit olarak görünür.</p>
+      </div>
+    </div>
+
+    <div class="opt-card">
+      <label class="switch"><input type="checkbox" id="areaChk" checked /> <span>Parselin üzerine alanını (m²) yaz</span></label>
+      <p class="hint" style="margin:6px 0 0">Alan, yüklediğin parselden otomatik hesaplanır ve parselin ortasında görünür.</p>
+    </div>
+
+    <div class="opt-card">
+      <label class="switch"><input type="checkbox" id="poiChk" /> <span>Çevredeki önemli yerleri işaretle</span></label>
+      <div id="poiFields" style="display:none">
+        <p class="hint" style="margin-top:0">Yerin adını yaz, <b>“Haritada İşaretle”</b>ye bas, sonra haritada o noktaya tıkla. Videoda <b>ok ve yazı</b> olarak görünür.</p>
+        <label class="fld">Yer adı</label>
+        <input type="text" id="poiLabel" placeholder="Örn. E-5 bağlantı yolu · 400 m" />
+        <button class="btn ghost small" id="poiAdd" style="margin-top:8px">📍 Haritada İşaretle</button>
+        <div id="poiItems"></div>
+        <div class="inline" style="margin-top:10px"><span>Etiket rengi</span><input type="color" id="poiColor" value="#ffffff" /></div>
+        <button class="btn ghost small" id="poiClear" style="margin-top:8px">🗑 Tüm işaretleri temizle</button>
+        <p class="hint" style="opacity:.85">Mesafe ve konumlar <b>temsilîdir</b>; resmî ölçü değildir.</p>
       </div>
     </div>
 
@@ -424,6 +464,16 @@
     #card{transform:scale(.82);transform-origin:bottom right}
     #mapInfo{font-size:11px;padding:6px 10px;gap:9px;top:50px}
   }
+
+
+  /* Harita üstü canlı efekt katmanı (başlık + alan + yer işaretleri) */
+  #liveFx{position:absolute;inset:0;z-index:3;pointer-events:none}
+  /* Yer işareti listesi */
+  .poi-row{display:flex;align-items:center;gap:8px;background:#f7f9fb;border:1px solid var(--line);
+    border-radius:9px;padding:8px 10px;margin-top:8px;font-size:12.5px;color:var(--txt)}
+  .poi-row span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .poi-row button{border:none;background:none;color:#e11d48;font-size:15px;cursor:pointer;padding:2px 4px;line-height:1}
+  .poi-hint-active{background:#fff7ed !important;border-color:#fdba74 !important;color:#9a3412 !important}
 
   /* Mobil yönlendirme çubuğu */
   #mobileBar{display:none;position:fixed;left:0;right:0;bottom:0;z-index:40;background:#0f766e;color:#fff;padding:12px 14px;font-size:13.5px;line-height:1.5;box-shadow:0 -6px 24px rgba(0,0,0,.25)}
@@ -660,6 +710,19 @@ function loadParcel(geojson){
   // alan hesabı
   let area=0;
   try{ fc.features.forEach(f=>{ if(f.geometry) area += turf.area(f); }); }catch(e){}
+
+  // her parselin kendi alanı + merkezi (videoda üstüne m² yazmak için)
+  window.parcelLabels = [];
+  try{
+    fc.features.forEach(f=>{
+      if(!f.geometry) return;
+      const a = turf.area(f);
+      if(!(a>0)) return;
+      let c=null;
+      try{ c = turf.centerOfMass(f).geometry.coordinates; }catch(e){ c = turf.center(f).geometry.coordinates; }
+      if(c) window.parcelLabels.push({lng:c[0], lat:c[1], m2:Math.round(a)});
+    });
+  }catch(e){}
   const m2 = Math.round(area);
   cardArea.textContent = m2 ? m2.toLocaleString('tr-TR')+' m²' : '— m²';
 
@@ -952,7 +1015,17 @@ orbitBtn.onclick=()=>{
 /* ---------- Videoya gömülen danışman etiketi ---------- */
 function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 function textOn(hex){ const c=(hex||'#0d9488').replace('#',''); const r=parseInt(c.substr(0,2),16),g=parseInt(c.substr(2,2),16),b=parseInt(c.substr(4,2),16); return ((0.299*r+0.587*g+0.114*b)/255)>0.62 ? '#152230' : '#ffffff'; }
+// Video karesine basılan her şey: başlık şeridi + parsel alanı + yer işaretleri + danışman kartı
 function drawOverlay(ctx,w,h){
+  let proj=null; const occ=[];
+  try{ proj = videoProject(w,h); }catch(e){}
+  try{ drawBanner(ctx,w,h,occ); }catch(e){}
+  try{ if(proj) drawAreaLabels(ctx,w,h,proj,occ); }catch(e){}
+  try{ if(proj) drawPois(ctx,w,h,proj,occ); }catch(e){}
+  drawContactCard(ctx,w,h);
+}
+
+function drawContactCard(ctx,w,h){
   if(!ovToggle.checked) return;
   const name=(ovName.value||'').trim(), phone=(ovPhone.value||'').trim();
   const hasImg = ovImgEl && ovImgReady;
@@ -1144,6 +1217,8 @@ recordBtn.onclick=()=>{
   // haritayı seçilen orana göre geçici olarak yeniden boyutlandır
   const saved = {left:mapEl.style.left,top:mapEl.style.top,right:mapEl.style.right,bottom:mapEl.style.bottom,width:mapEl.style.width,height:mapEl.style.height};
   const restore = ()=>{
+    recordingActive = false;
+    try{ var _lfx2=document.getElementById('liveFx'); if(_lfx2) _lfx2.style.display=''; }catch(e){}
     mapEl.style.left=saved.left; mapEl.style.top=saved.top;
     mapEl.style.right=saved.right; mapEl.style.bottom=saved.bottom;
     mapEl.style.width=saved.width; mapEl.style.height=saved.height;
@@ -1166,6 +1241,8 @@ recordBtn.onclick=()=>{
   map.resize();
   if(map.getSource('parcel')) fitToParcel(map.getSource('parcel')._data);
 
+  recordingActive = true;
+  try{ var _lfx=document.getElementById('liveFx'); if(_lfx) _lfx.style.display='none'; }catch(e){}
   recordBtn.disabled=true;
   recBadge.style.display='block';
   recBadge.textContent='● Hazırlanıyor…';
@@ -1608,6 +1685,237 @@ roadColor.oninput = ()=>{
   if(map.getLayer('road-band')) map.setPaintProperty('road-band','line-color',roadColor.value);
 };
 
+
+/* ============ Başlık şeridi + parsel alanı + çevre yer işaretleri ============ */
+window.parcelLabels = window.parcelLabels || [];
+var poiList = [], poiPlacing = false, recordingActive = false;
+
+// Harita noktasını video karesindeki piksele çevirir (kayıttaki cover-crop ile aynı)
+function videoProject(w,h){
+  const mc = map.getCanvas();
+  const cw = mc.width, chh = mc.height;
+  const sc = Math.max(w/cw, h/chh);
+  const ox = (w - cw*sc)/2, oy = (h - chh*sc)/2;
+  const r  = cw / (mc.clientWidth || cw);
+  return ll => { const p = map.project(ll); return [ox + p.x*r*sc, oy + p.y*r*sc]; };
+}
+
+// --- etiket yerleşimi: kutular birbirinin ve başlığın üstüne binmesin ---
+function _boxOverlap(a,b){
+  const m = 6;
+  return !(a.x+a.w+m < b.x || b.x+b.w+m < a.x || a.y+a.h+m < b.y || b.y+b.h+m < a.y);
+}
+function _isFree(r, occ){
+  for(let i=0;i<occ.length;i++){ if(_boxOverlap(r, occ[i])) return false; }
+  return true;
+}
+
+function drawBanner(ctx,w,h,occ){
+  if(typeof bannerChk==='undefined' || !bannerChk.checked) return null;
+  const t = (bannerText.value||'').trim();
+  if(!t) return null;
+  const fs = Math.max(Math.round(h*0.040), 14);
+  ctx.font = `800 ${fs}px "Segoe UI",system-ui,sans-serif`;
+  const tw = ctx.measureText(t).width;
+  const padX = Math.round(fs*0.95), padY = Math.round(fs*0.42);
+  let bw = tw + padX*2;
+  const maxW = w*0.92;
+  if(bw > maxW) bw = maxW;
+  const bh = fs + padY*2;
+  const x = (w-bw)/2, y = Math.round(h*0.045);
+  roundRect(ctx, x, y, bw, bh, Math.round(bh/2));
+  ctx.fillStyle = bannerBg.value; ctx.fill();
+  ctx.fillStyle = textOn(bannerBg.value);
+  ctx.textBaseline = 'top'; ctx.textAlign = 'center';
+  ctx.fillText(t, x+bw/2, y+padY, bw-padX*1.2);
+  ctx.textAlign = 'left';
+  const rect = {x:x, y:y, w:bw, h:bh};
+  if(occ) occ.push(rect);
+  return rect;
+}
+
+function drawAreaLabels(ctx,w,h,project,occ){
+  if(typeof areaChk==='undefined' || !areaChk.checked) return;
+  const list = window.parcelLabels || [];
+  if(!list.length) return;
+  occ = occ || [];
+  const fs  = Math.max(Math.round(h*0.030), 13);
+  const fs2 = Math.max(Math.round(fs*0.62), 10);
+  const F1 = `800 ${fs}px "Segoe UI",system-ui,sans-serif`;
+  const F2 = `600 ${fs2}px "Segoe UI",system-ui,sans-serif`;
+  list.forEach(p=>{
+    let px, py;
+    try{ const r = project([p.lng,p.lat]); px = r[0]; py = r[1]; }catch(e){ return; }
+    if(!isFinite(px) || !isFinite(py)) return;
+    if(px < 0 || px > w || py < 0 || py > h) return;
+    const t1 = p.m2.toLocaleString('tr-TR') + ' m²';
+    const t2 = p.m2 >= 10000 ? ('≈ ' + (p.m2/1000).toLocaleString('tr-TR',{maximumFractionDigits:1}) + ' dönüm') : '';
+    ctx.font = F1; const w1 = ctx.measureText(t1).width;
+    let w2 = 0; if(t2){ ctx.font = F2; w2 = ctx.measureText(t2).width; }
+    const bw = Math.max(w1,w2) + fs*1.2;
+    const bh = t2 ? fs*2.35 : fs*1.55;
+    // parselin ortasında dursun; çakışırsa biraz aşağı kaydır
+    let bx = px - bw/2, by = py - bh/2;
+    bx = Math.max(8, Math.min(bx, w-bw-8));
+    for(let k=0;k<8;k++){
+      const r = {x:bx,y:by,w:bw,h:bh};
+      if(_isFree(r, occ) && by > 8 && by+bh < h-8) break;
+      by += bh*0.75;
+      if(by+bh > h-8){ by = Math.max(8, py - bh/2 - bh*0.9*(k+1)); }
+    }
+    by = Math.max(8, Math.min(by, h-bh-8));
+    roundRect(ctx, bx, by, bw, bh, Math.round(fs*0.40));
+    ctx.fillStyle = 'rgba(16,28,38,.60)'; ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const cx = bx+bw/2, cy = by+bh/2;
+    ctx.font = F1;
+    ctx.fillText(t1, cx, t2 ? cy - fs*0.40 : cy);
+    if(t2){ ctx.font = F2; ctx.globalAlpha = .92; ctx.fillText(t2, cx, cy + fs*0.62); ctx.globalAlpha = 1; }
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    occ.push({x:bx,y:by,w:bw,h:bh});
+  });
+}
+
+function drawPois(ctx,w,h,project,occ){
+  if(typeof poiChk==='undefined' || !poiChk.checked || !poiList.length) return;
+  occ = occ || [];
+  const col = poiColor.value || '#ffffff';
+  const fs  = Math.max(Math.round(h*0.022), 11);
+  const pad = Math.round(fs*0.6);
+  const lift= Math.round(h*0.075);
+  ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+  poiList.forEach(p=>{
+    let px, py;
+    try{ const r = project([p.lng, p.lat]); px = r[0]; py = r[1]; }catch(e){ return; }
+    if(!isFinite(px) || !isFinite(py)) return;
+    if(px < -w*0.4 || px > w*1.4 || py < -h*0.4 || py > h*1.4) return;
+
+    ctx.font = `700 ${fs}px "Segoe UI",system-ui,sans-serif`;
+    const tw = ctx.measureText(p.label).width;
+    const bw = Math.min(tw + pad*2, w*0.8), bh = fs + pad*1.7;
+    let bx = px - bw/2;
+    bx = Math.max(10, Math.min(bx, w - bw - 10));
+
+    // önce noktanın üstünü dene, boş yer bulunamazsa altını dene
+    let by = py - lift - bh, placed = false;
+    for(let k=0;k<7;k++){
+      const cand = by - k*(bh+8);
+      if(cand < 8) break;
+      if(_isFree({x:bx,y:cand,w:bw,h:bh}, occ)){ by = cand; placed = true; break; }
+    }
+    if(!placed){
+      for(let k=0;k<7;k++){
+        const cand = py + lift*0.6 + k*(bh+8);
+        if(cand + bh > h-8) break;
+        if(_isFree({x:bx,y:cand,w:bw,h:bh}, occ)){ by = cand; placed = true; break; }
+      }
+    }
+    by = Math.max(8, Math.min(by, h - bh - 8));
+
+    // ok: kutunun noktaya bakan kenarından çıksın
+    const sx = bx + bw/2;
+    const sy = (by + bh/2 < py) ? (by + bh) : by;
+    ctx.strokeStyle = col; ctx.lineWidth = Math.max(2, h*0.0028); ctx.globalAlpha = .95;
+    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(px, py); ctx.stroke();
+    const ang = Math.atan2(py-sy, px-sx), ah = Math.max(9, h*0.015);
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(px - ah*Math.cos(ang-0.42), py - ah*Math.sin(ang-0.42));
+    ctx.lineTo(px - ah*Math.cos(ang+0.42), py - ah*Math.sin(ang+0.42));
+    ctx.closePath(); ctx.fillStyle = col; ctx.fill();
+    ctx.beginPath(); ctx.arc(px, py, Math.max(3, h*0.0042), 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+
+    roundRect(ctx, bx, by, bw, bh, Math.round(fs*0.45));
+    ctx.fillStyle = 'rgba(16,28,38,.80)'; ctx.fill();
+    ctx.strokeStyle = col; ctx.lineWidth = Math.max(1.4, h*0.0015); ctx.globalAlpha = .9; ctx.stroke(); ctx.globalAlpha = 1;
+    ctx.fillStyle = col;
+    ctx.save(); ctx.beginPath(); ctx.rect(bx,by,bw,bh); ctx.clip();
+    ctx.fillText(p.label, bx+pad, by+pad*0.85);
+    ctx.restore();
+    occ.push({x:bx,y:by,w:bw,h:bh});
+  });
+}
+
+/* ---- canlı önizleme (haritanın üstünde) ---- */
+const liveFx = document.getElementById('liveFx');
+const liveCtx = liveFx ? liveFx.getContext('2d') : null;
+let liveLast = 0;
+function drawLiveFx(){
+  if(!liveCtx || recordingActive) return;
+  const mc = map.getCanvas();
+  const cw = mc.clientWidth, chh = mc.clientHeight;
+  if(!cw || !chh) return;
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  const W = Math.round(cw*dpr), H = Math.round(chh*dpr);
+  if(liveFx.width !== W || liveFx.height !== H){ liveFx.width = W; liveFx.height = H; }
+  liveFx.style.width = cw+'px'; liveFx.style.height = chh+'px';
+  liveCtx.clearRect(0,0,W,H);
+  const proj = ll=>{ const p = map.project(ll); return [p.x*dpr, p.y*dpr]; };
+  const occ = [];
+  try{ drawBanner(liveCtx,W,H,occ); }catch(e){}
+  try{ drawAreaLabels(liveCtx,W,H,proj,occ); }catch(e){}
+  try{ drawPois(liveCtx,W,H,proj,occ); }catch(e){}
+}
+map.on('render', ()=>{ const n=Date.now(); if(n-liveLast < 90) return; liveLast=n; drawLiveFx(); });
+
+/* ---- arayüz bağlantıları ---- */
+function syncBanner(){ bannerFields.style.display = bannerChk.checked ? 'block':'none'; drawLiveFx(); }
+bannerChk.addEventListener('change', syncBanner); syncBanner();
+bannerPreset.onchange = ()=>{
+  if(bannerPreset.value !== '__custom'){ bannerText.value = bannerPreset.value; }
+  else { bannerText.value=''; bannerText.focus(); }
+  drawLiveFx();
+};
+bannerText.oninput = ()=>{ drawLiveFx(); };
+bannerBg.oninput   = ()=>{ drawLiveFx(); };
+areaChk.addEventListener('change', ()=>drawLiveFx());
+
+function syncPoi(){ poiFields.style.display = poiChk.checked ? 'block':'none'; drawLiveFx(); }
+poiChk.addEventListener('change', syncPoi); syncPoi();
+poiColor.oninput = ()=>{ drawLiveFx(); };
+
+function renderPoiItems(){
+  poiItems.innerHTML = '';
+  poiList.forEach((p,i)=>{
+    const row = document.createElement('div');
+    row.className = 'poi-row';
+    const sp = document.createElement('span'); sp.textContent = '📍 ' + p.label;
+    const bt = document.createElement('button'); bt.textContent = '✕'; bt.title = 'Kaldır';
+    bt.onclick = ()=>{ poiList.splice(i,1); renderPoiItems(); drawLiveFx(); };
+    row.appendChild(sp); row.appendChild(bt);
+    poiItems.appendChild(row);
+  });
+}
+function stopPoiPlacing(){
+  poiPlacing = false;
+  poiAdd.textContent = '📍 Haritada İşaretle';
+  poiAdd.classList.remove('poi-hint-active');
+  map.getCanvas().style.cursor = '';
+}
+poiAdd.onclick = ()=>{
+  if(poiPlacing){ stopPoiPlacing(); return; }
+  const lbl = (poiLabel.value||'').trim();
+  if(!lbl){ alert('Önce yerin adını yaz (örn. "Devlet yolu · 300 m"), sonra haritada işaretle.'); poiLabel.focus(); return; }
+  if(!poiChk.checked){ poiChk.checked = true; syncPoi(); }
+  poiPlacing = true;
+  poiAdd.textContent = '👆 Haritada noktaya tıkla (iptal: tekrar bas)';
+  poiAdd.classList.add('poi-hint-active');
+  map.getCanvas().style.cursor = 'crosshair';
+};
+poiClear.onclick = ()=>{ poiList = []; renderPoiItems(); stopPoiPlacing(); drawLiveFx(); };
+
+map.on('click', e=>{
+  if(!poiPlacing) return;
+  const lbl = (poiLabel.value||'').trim() || 'Önemli nokta';
+  poiList.push({ lng:e.lngLat.lng, lat:e.lngLat.lat, label:lbl });
+  poiLabel.value = '';
+  renderPoiItems();
+  stopPoiPlacing();
+  drawLiveFx();
+});
+
 /* ---------- Hisse / Bölüm Vurgulama (elle çizim) ---------- */
 let hlDrawing=false, hlPts=[], hlTraceLines=[], hlFullLine=null;
 function hlEnsureLayers(){
@@ -1695,6 +2003,7 @@ hlClear.onclick=()=>{
   map.doubleClickZoom.enable();
 };
 map.on('click', e=>{
+  if(poiPlacing) return;
   if(!hlDrawing) return;
   hlPts.push([e.lngLat.lng, e.lngLat.lat]);
   hlTempUpdate();
