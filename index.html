@@ -718,9 +718,10 @@ function loadParcel(geojson){
       if(!f.geometry) return;
       const a = turf.area(f);
       if(!(a>0)) return;
-      let c=null;
+      let c=null, bb=null;
       try{ c = turf.centerOfMass(f).geometry.coordinates; }catch(e){ c = turf.center(f).geometry.coordinates; }
-      if(c) window.parcelLabels.push({lng:c[0], lat:c[1], m2:Math.round(a)});
+      try{ bb = turf.bbox(f); }catch(e){}
+      if(c) window.parcelLabels.push({lng:c[0], lat:c[1], m2:Math.round(a), bb:bb});
     });
   }catch(e){}
   const m2 = Math.round(area);
@@ -1739,39 +1740,80 @@ function drawAreaLabels(ctx,w,h,project,occ){
   const list = window.parcelLabels || [];
   if(!list.length) return;
   occ = occ || [];
-  const fs  = Math.max(Math.round(h*0.030), 13);
-  const fs2 = Math.max(Math.round(fs*0.62), 10);
-  const F1 = `800 ${fs}px "Segoe UI",system-ui,sans-serif`;
-  const F2 = `600 ${fs2}px "Segoe UI",system-ui,sans-serif`;
+  const fsBase = Math.max(Math.round(h*0.030), 13);
+  const fsMin  = Math.max(Math.round(h*0.015), 10);
+
   list.forEach(p=>{
     let px, py;
     try{ const r = project([p.lng,p.lat]); px = r[0]; py = r[1]; }catch(e){ return; }
     if(!isFinite(px) || !isFinite(py)) return;
     if(px < 0 || px > w || py < 0 || py > h) return;
-    const t1 = p.m2.toLocaleString('tr-TR') + ' m²';
-    const t2 = p.m2 >= 10000 ? ('≈ ' + (p.m2/1000).toLocaleString('tr-TR',{maximumFractionDigits:1}) + ' dönüm') : '';
-    ctx.font = F1; const w1 = ctx.measureText(t1).width;
-    let w2 = 0; if(t2){ ctx.font = F2; w2 = ctx.measureText(t2).width; }
-    const bw = Math.max(w1,w2) + fs*1.2;
-    const bh = t2 ? fs*2.35 : fs*1.55;
-    // parselin ortasında dursun; çakışırsa biraz aşağı kaydır
-    let bx = px - bw/2, by = py - bh/2;
-    bx = Math.max(8, Math.min(bx, w-bw-8));
-    for(let k=0;k<8;k++){
-      const r = {x:bx,y:by,w:bw,h:bh};
-      if(_isFree(r, occ) && by > 8 && by+bh < h-8) break;
-      by += bh*0.75;
-      if(by+bh > h-8){ by = Math.max(8, py - bh/2 - bh*0.9*(k+1)); }
+
+    // Parselin ekranda kapladığı alan — kamera yükseldikçe küçülür
+    let pw = Infinity, ph = Infinity, top = py, bot = py;
+    if(p.bb){
+      try{
+        const cs = [[p.bb[0],p.bb[1]],[p.bb[2],p.bb[1]],[p.bb[2],p.bb[3]],[p.bb[0],p.bb[3]]].map(project);
+        const xs = cs.map(c=>c[0]), ys = cs.map(c=>c[1]);
+        if(xs.every(isFinite) && ys.every(isFinite)){
+          pw = Math.max.apply(null,xs) - Math.min.apply(null,xs);
+          ph = Math.max.apply(null,ys) - Math.min.apply(null,ys);
+          top = Math.min.apply(null,ys); bot = Math.max.apply(null,ys);
+        }
+      }catch(e){}
     }
+
+    const t1 = p.m2.toLocaleString('tr-TR') + ' m²';
+    let  t2 = p.m2 >= 10000 ? ('≈ ' + (p.m2/1000).toLocaleString('tr-TR',{maximumFractionDigits:1}) + ' dönüm') : '';
+
+    const measure = (fs, withT2)=>{
+      ctx.font = `800 ${fs}px "Segoe UI",system-ui,sans-serif`;
+      const a = ctx.measureText(t1).width;
+      let b = 0;
+      if(withT2){
+        const f2 = Math.max(Math.round(fs*0.62), 9);
+        ctx.font = `600 ${f2}px "Segoe UI",system-ui,sans-serif`;
+        b = ctx.measureText(t2).width;
+      }
+      return { bw: Math.max(a,b) + fs*1.2, bh: withT2 ? fs*2.35 : fs*1.55 };
+    };
+
+    // Yazıyı parselin içine sığacak şekilde küçült
+    let m = measure(fsBase, !!t2);
+    let scale = Math.min(1, (pw*0.88)/m.bw, (ph*0.55)/m.bh);
+    if(!isFinite(scale) || scale <= 0) scale = 1;
+    let fs = Math.round(fsBase*scale);
+    if(t2 && fs < fsBase*0.74) t2 = '';          // dar alanda dönüm satırını bırak
+    fs = Math.min(Math.max(fs, fsMin), fsBase);
+    m = measure(fs, !!t2);
+    const bw = m.bw, bh = m.bh;
+    const fs2 = Math.max(Math.round(fs*0.62), 9);
+
+    // Yine sığmıyorsa (parsel çok küçük kaldıysa) etiketi parselin hemen üstüne al
+    let bx = px - bw/2, by = py - bh/2;
+    if(bw > pw*1.02){
+      by = top - bh - Math.max(8, h*0.012);
+      if(by < 8) by = bot + Math.max(8, h*0.012);
+    }
+    bx = Math.max(8, Math.min(bx, w-bw-8));
     by = Math.max(8, Math.min(by, h-bh-8));
+    for(let k=0;k<6;k++){
+      if(_isFree({x:bx,y:by,w:bw,h:bh}, occ)) break;
+      by += bh*0.8;
+      if(by+bh > h-8) by = Math.max(8, top - bh - (k+1)*bh*0.9);
+    }
+
     roundRect(ctx, bx, by, bw, bh, Math.round(fs*0.40));
     ctx.fillStyle = 'rgba(16,28,38,.60)'; ctx.fill();
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     const cx = bx+bw/2, cy = by+bh/2;
-    ctx.font = F1;
+    ctx.font = `800 ${fs}px "Segoe UI",system-ui,sans-serif`;
     ctx.fillText(t1, cx, t2 ? cy - fs*0.40 : cy);
-    if(t2){ ctx.font = F2; ctx.globalAlpha = .92; ctx.fillText(t2, cx, cy + fs*0.62); ctx.globalAlpha = 1; }
+    if(t2){
+      ctx.font = `600 ${fs2}px "Segoe UI",system-ui,sans-serif`;
+      ctx.globalAlpha = .92; ctx.fillText(t2, cx, cy + fs*0.62); ctx.globalAlpha = 1;
+    }
     ctx.textAlign = 'left'; ctx.textBaseline = 'top';
     occ.push({x:bx,y:by,w:bw,h:bh});
   });
