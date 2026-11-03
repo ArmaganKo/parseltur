@@ -275,10 +275,22 @@
     </div>
 
     <div class="opt-card">
-      <label class="switch"><input type="checkbox" id="cardToggle" /> <span>Parsel bilgi kartını göster</span></label>
+      <label class="switch"><input type="checkbox" id="edgeChk" /> <span>Parselin kenar uzunluklarını (m) yaz</span></label>
+      <p class="hint" style="margin:6px 0 0">İsteğe bağlı. Kenar uzunlukları parselden otomatik hesaplanır ve kenarların ortasında görünür.</p>
+    </div>
+
+    <div class="opt-card">
+      <label class="switch"><input type="checkbox" id="cardToggle" /> <span>Videonun sonunda “Parsel Bilgileri” kartını göster</span></label>
       <div id="cardFields" style="display:none">
-        <label class="fld">Ada / Parsel etiketi</label>
+        <p class="hint" style="margin-top:6px">Bilgiler parselden <b>otomatik</b> hesaplanır, senin bir şey girmen gerekmez. Kart videonun son saniyelerinde görünür. Kartta istemediğin satırın tikini kaldır.</p>
+        <div id="infoList"></div>
+        <label class="fld">Kart başlığı (isteğe bağlı)</label>
         <textarea id="adaText" style="height:38px" placeholder="Örn. 1234 ada 5 parsel"></textarea>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+          <button class="btn ghost small" id="infoPreview" type="button">👁 Kartı haritada göster</button>
+          <button class="btn ghost small" id="infoRetry" type="button">🔄 Bilgileri yeniden hesapla</button>
+        </div>
+        <p class="hint" style="opacity:.85">Mesafeler kuş uçuşudur. Rakım ve eğim açık yükseklik verisinden (AWS Terrain Tiles) yaklaşık hesaplanır; yer bilgileri © OpenStreetMap katkıcıları (ODbL). Bilgilendirme amaçlıdır, resmî ölçüm değildir.</p>
       </div>
     </div>
 
@@ -292,8 +304,8 @@
         <input type="range" id="exag" min="0" max="3" step="0.1" value="1.5" />
         <label class="fld">Harita kaynağı</label>
         <select id="imgSrc">
-          <option value="esri" selected>Uydu — standart (varsayılan)</option>
-          <option value="clarity">Uydu HD — daha net, daha çok yakınlaşır</option>
+          <option value="esri">Uydu — standart</option>
+          <option value="clarity" selected>Uydu HD — daha net, daha çok yakınlaşır (varsayılan)</option>
           <option value="topo">Topoğrafik (yollar + isimler)</option>
         </select>
         <label class="switch" style="margin-top:8px"><input type="checkbox" id="terrainChk" checked /> <span>⛰ 3D arazi (yakın planda otomatik kapanır)</span></label>
@@ -309,8 +321,14 @@
         <label class="fld">Çizgi kalınlığı · <span id="lwVal">3px</span></label>
         <input type="range" id="lineWidth" min="1" max="8" step="0.5" value="3" />
         <label class="switch" style="margin-top:8px"><input type="checkbox" id="traceChk" checked /> <span>✨ Lazer sınır çizimi</span></label>
+        <label class="fld">Çizgi stili</label>
+        <select id="lineStyle">
+          <option value="solid">Düz çizgi</option>
+          <option value="dash">Kesik kesik ve hareketli</option>
+        </select>
+        <p class="hint" style="margin-top:4px">“Kesik kesik ve hareketli” seçilirse sınır çizgisi parçalı olur ve videoda parselin etrafında akar.</p>
         <label class="switch" style="margin-top:8px"><input type="checkbox" id="smoothChk" checked /> <span>🎞 Akıcı mod (kare kare üretim — önerilen)</span></label>
-        <p class="hint" style="opacity:.85">Akıcı mod videoyu kare kare üretir: bilgisayar yavaş olsa bile video hiç takılmaz. Üretim, videonun süresinden biraz uzun sürebilir. Kapatırsanız eski (gerçek zamanlı) yöntem kullanılır.</p>
+        <p class="hint" style="opacity:.85">Akıcı mod videoyu kare kare üretir. Kareler sırayla kodlandığı için kayıt takılmaları azaltılır; üretim süresi bilgisayar ve harita verisine göre değişir. Kapatırsanız gerçek zamanlı yöntem kullanılır.</p>
         <p class="hint" style="margin-top:4px">Açıkken video gerçek zamanlı kaydedilmez; her kare tek tek üretilir. Hazırlanması biraz uzun sürer ama takılma/donma olmaz.</p>
 
         <div class="adv-sec">Parsel vurguları</div>
@@ -432,6 +450,11 @@
   .btn{min-height:44px}
   .trust{font-size:11px;color:var(--muted);background:#f2f8f7;border-radius:8px;padding:8px 10px;margin-top:9px;line-height:1.5}
   .area-out{margin-top:10px;background:#e6f4f2;border-radius:9px;padding:9px 11px;font-size:13px;color:var(--gold-soft);font-weight:600}
+  .info-row{display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-top:1px dashed var(--line);cursor:pointer}
+  .info-row:first-child{border-top:none}
+  .info-row input{margin-top:3px}
+  .info-row b{display:block;font-size:12.5px}
+  .info-row small{display:block;font-size:12px;color:var(--muted);line-height:1.45}
   .opt-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:13px 14px;margin-bottom:12px}
   .result-box{background:#e6f4f2;border:1px solid rgba(13,148,136,.3);border-radius:14px;padding:15px;margin-bottom:12px}
   .result-title{font-size:15px;font-weight:800;color:var(--gold-soft)}
@@ -516,14 +539,36 @@
 /* ---------- Arayüzü hemen göster (haritayı bekleme) ---------- */
 try{ document.body.classList.add('loaded'); }catch(e){}
 
+/* ---------- Donanıma uyumlu performans profili ---------- */
+// navigator.deviceMemory her tarayıcıda bulunmaz; bulunmadığında orta profil kullanılır.
+function detectPerformanceProfile(){
+  const cores = Number(navigator.hardwareConcurrency) || null;
+  const memory = Number(navigator.deviceMemory) || null;
+  const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+                 (matchMedia('(max-width: 700px)').matches && !matchMedia('(pointer:fine)').matches);
+  let level = 'medium';
+  if(mobile || (cores !== null && cores <= 4) || (memory !== null && memory <= 4)) level = 'low';
+  else if(cores !== null && memory !== null && cores >= 8 && memory >= 8) level = 'high';
+  const profiles = {
+    low:    { pixelRatio:1,   tileCache:40 },
+    medium: { pixelRatio:1.5, tileCache:60 },
+    high:   { pixelRatio:2,   tileCache:90 }
+  };
+  return { level, ...profiles[level], cores, memory };
+}
+const PERF = detectPerformanceProfile();
+window.PARSEL_TUR_PERF = PERF;
+console.info('Parsel Tur performans profili:', PERF);
+
 /* ---------- Harita kurulumu (uydu + 3D arazi) ---------- */
 const map = new maplibregl.Map({
   container:'map',
+  // Video dışa aktarma mevcut WebGL canvas'ını okuduğu için açık tutuluyor.
   preserveDrawingBuffer:true,
-  fadeDuration:0,            // tile solma animasyonu sürekli yeniden çizim yaptırıyordu
-  maxTileCacheSize:60,       // bellek şişmesini önle (uzun videolarda çöküşe yol açıyordu)
+  fadeDuration:0,
+  maxTileCacheSize:PERF.tileCache,
   refreshExpiredTiles:false,
-  pixelRatio: Math.min(window.devicePixelRatio||1, 2),
+  pixelRatio: Math.min(window.devicePixelRatio||1, PERF.pixelRatio),
   maxPitch:85,
   pitch:65,
   bearing:-20,
@@ -534,8 +579,8 @@ const map = new maplibregl.Map({
     sources:{
       satellite:{
         type:'raster',
-        tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-        tileSize:256, maxzoom:18,
+        tiles:['https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+        tileSize:256, maxzoom:19,
         attribution:'Görüntü © Esri'
       },
       terrain:{
@@ -709,6 +754,7 @@ function loadParcel(geojson){
     paint:{'line-color':lineColor.value,'line-width':_lw*3.6,'line-opacity':0.45,'line-blur':3}});
   map.addLayer({id:'trace-line',type:'line',source:'trace',
     paint:{'line-color':lineColor.value,'line-width':_lw*1.5,'line-opacity':0.98,'line-blur':0.6}});
+  applyLineStyle();
 
   hasParcel=true;
 
@@ -740,6 +786,7 @@ function loadParcel(geojson){
     });
   }catch(e){}
   try{ renderAreaInputs(); }catch(e){}
+  try{ initParcelInfo(fc); }catch(e){}
   const m2 = Math.round(area);
   cardArea.textContent = m2 ? m2.toLocaleString('tr-TR')+' m²' : '— m²';
 
@@ -825,7 +872,7 @@ const IMAGERY = {
   topo:   { url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
             maxz:18, attr:'Harita © Esri' }
 };
-let imgMaxZoom = 18;   // seçili kaynağın desteklediği en yüksek zoom
+let imgMaxZoom = 19;   // varsayılan HD kaynağın desteklediği en yüksek zoom
 
 function setImagery(key){
   const cfg = IMAGERY[key] || IMAGERY.clarity;
@@ -883,6 +930,7 @@ lineColor.oninput=()=>{
     if(map.getLayer(id)) map.setPaintProperty(id,'line-color',lineColor.value);
   });
 };
+lineStyle.onchange=()=>applyLineStyle();
 lineWidth.oninput=()=>{
   lwVal.textContent=lineWidth.value+'px';
   const w=parseFloat(lineWidth.value);
@@ -936,8 +984,41 @@ function orbit(){
   orbitLastMove = _now;
   const elapsed = (Date.now() - tourStart) / 1000;
   const traceProgress = applyCameraAt(elapsed);
+  window._ovT = elapsed;
+  updateDash(elapsed);
   updateTrace(traceProgress);
   updateRoads(traceProgress);
+}
+
+/* ---------- Kesik ve hareketli çizgi ---------- */
+// Çizgi boyunca akan kesikler: desen adım adım kaydırılır (birim = çizgi kalınlığı)
+const DASH_SEQ = [
+  [0,4,3],[0.5,4,2.5],[1,4,2],[1.5,4,1.5],[2,4,1],[2.5,4,0.5],[3,4,0],
+  [0,0.5,3,3.5],[0,1,3,3],[0,1.5,3,2.5],[0,2,3,2],[0,2.5,3,1.5],[0,3,3,1],[0,3.5,3,0.5]
+];
+const DASH_LAYERS = ['parcel-line','trace-glow','trace-line'];
+let dashStep = -1;
+function isDash(){ const el=document.getElementById('lineStyle'); return !!(el && el.value==='dash'); }
+function setDash(step){
+  dashStep = step;
+  const arr = DASH_SEQ[step % DASH_SEQ.length];
+  // parıltı çizgisi 2.4 kat kalın: desen aynı piksel uzunluğunda olsun diye oranla küçült
+  const k = { 'parcel-line':1, 'trace-line':1, 'trace-glow':1/2.4 };
+  DASH_LAYERS.forEach(id=>{ try{ if(map.getLayer(id)) map.setPaintProperty(id,'line-dasharray',arr.map(v=>v*k[id])); }catch(e){} });
+}
+function applyLineStyle(){
+  if(isDash()){ setDash(0); }
+  else{
+    dashStep = -1;
+    DASH_LAYERS.forEach(id=>{ try{ if(map.getLayer(id)) map.setPaintProperty(id,'line-dasharray',null); }catch(e){} });
+  }
+  try{ map.triggerRepaint(); }catch(e){}
+}
+// saniyede 12 adım → kesikler sürekli akar (canlı tur ve video aynı hızda)
+function updateDash(elapsed){
+  if(!isDash()) return;
+  const st = Math.floor(elapsed*12) % DASH_SEQ.length;
+  if(st !== dashStep) setDash(st);
 }
 
 /* ---------- Lazer sınır çizimi ---------- */
@@ -992,7 +1073,7 @@ function resetTrace(){
 
 orbitBtn.onclick=()=>{
   orbiting=!orbiting;
-  orbitBtn.textContent = orbiting ? '⏹ Drone Turunu Durdur' : '🚁 Drone Turu Başlat';
+  orbitBtn.textContent = orbiting ? '⏹ Önizlemeyi Durdur' : '👁 Önizleme';
   if(orbiting){ 
     tourStart = Date.now();
     traceDone = false; roadDone = false;
@@ -1026,7 +1107,7 @@ orbitBtn.onclick=()=>{
     map.easeTo({pitch:initialPitch,duration:600}); 
     orbit(); 
   }
-  else { cancelAnimationFrame(raf); resetTrace(); applyTerrain(true); }
+  else { cancelAnimationFrame(raf); window._ovT = null; resetTrace(); applyTerrain(true); drawLiveFx(); }
 };
 
 /* ---------- Videoya gömülen danışman etiketi ---------- */
@@ -1036,9 +1117,9 @@ function textOn(hex){ const c=(hex||'#0d9488').replace('#',''); const r=parseInt
 function drawOverlay(ctx,w,h){
   let proj=null; const occ=[];
   try{ proj = videoProject(w,h); }catch(e){}
-  try{ drawBanner(ctx,w,h,occ); }catch(e){}
-  try{ if(proj) drawAreaLabels(ctx,w,h,proj,occ); }catch(e){}
-  try{ if(proj) drawPois(ctx,w,h,proj,occ); }catch(e){}
+  let br=null;
+  try{ br = drawBanner(ctx,w,h,occ); }catch(e){}
+  drawLabelsWithCard(ctx,w,h,proj,occ,br);
   drawContactCard(ctx,w,h);
 }
 
@@ -1081,7 +1162,7 @@ function drawContactCard(ctx,w,h){
    Gercek zamanli kayitta makine yetisemezse kare atlaniyor ve video takiliyordu.
    Bu yontemde her kare tek tek ciziliyor, harita o kareyi bitirene kadar
    bekleniyor ve kare videoya sabit zaman damgasiyla ekleniyor.
-   Sonuc: makine ne kadar yavas olursa olsun video kusursuz akici olur. */
+   Sonuç: kareler sabit zaman damgalarıyla kodlanır; cihazın bellek ve işlem kapasitesi yine de üretim süresini etkiler. */
 function offlineSupported(){
   return (typeof window.VideoEncoder === 'function') && (typeof window.Mp4Muxer === 'object');
 }
@@ -1115,12 +1196,30 @@ async function renderOffline(restore){
   const FPS = 30;
   const secs = parseInt(recLen.value,10) || 57;
   const total = FPS * secs;
-  const RES = {'16:9':[1280,720], '9:16':[720,1280], '1:1':[900,900]};
-  const [W,H] = RES[ratioSel.value] || [1280,720];
+  const ratio = ratioSel.value || '16:9';
+  const mapCanvas = map.getCanvas();
+  const RES_1080 = {'16:9':[1920,1080], '9:16':[1080,1920], '1:1':[1080,1080]};
+  const RES_720 = {'16:9':[1280,720], '9:16':[720,1280], '1:1':[900,900]};
+  const [targetW,targetH] = RES_1080[ratio] || RES_1080['16:9'];
+  const aspect = targetW / targetH;
+  // Cover kadrajda gerçekten kullanılabilecek kaynak piksel sayısını hesapla.
+  const sourceW = Math.min(mapCanvas.width, mapCanvas.height * aspect);
+  const sourceH = Math.min(mapCanvas.height, mapCanvas.width / aspect);
+  const enoughSource = sourceW >= targetW && sourceH >= targetH;
+  let use1080 = PERF.level !== 'low' && enoughSource;
+  // Tarayıcı 1080p kodlamayı desteklemiyorsa sessizce boş video üretmesin: 720p'ye düş
+  if(use1080){
+    try{
+      const sup = await VideoEncoder.isConfigSupported({ codec:'avc1.4d0028', width:RES_1080[ratio][0], height:RES_1080[ratio][1], bitrate:12000000, framerate:FPS });
+      if(!sup || !sup.supported) use1080 = false;
+    }catch(e){ use1080 = false; }
+  }
+  const [W,H] = use1080 ? RES_1080[ratio] : (RES_720[ratio] || RES_720['16:9']);
+  const BITRATE = use1080 ? 12000000 : 8000000;
+  console.info('Parsel Tur video çıktısı:', {width:W,height:H,fps:FPS,bitrate:BITRATE,sourceWidth:mapCanvas.width,sourceHeight:mapCanvas.height});
 
   const rc = document.createElement('canvas'); rc.width=W; rc.height=H;
-  const rctx = rc.getContext('2d');
-  const mapCanvas = map.getCanvas();
+  const rctx = rc.getContext('2d', { alpha:false });
 
   let muxer, encoder;
   try{
@@ -1133,7 +1232,7 @@ async function renderOffline(restore){
       output:(chunk,meta)=>{ try{ muxer.addVideoChunk(chunk,meta); }catch(e){} },
       error:(e)=>console.error('encoder', e)
     });
-    encoder.configure({ codec:'avc1.4d0028', width:W, height:H, bitrate:9000000, framerate:FPS });
+    encoder.configure({ codec:'avc1.4d0028', width:W, height:H, bitrate:BITRATE, framerate:FPS, latencyMode:'quality' });
   }catch(e){
     if(restore) restore();
     recBadge.style.display='none'; recordBtn.disabled=false;
@@ -1141,7 +1240,7 @@ async function renderOffline(restore){
     return;
   }
 
-  if(orbiting){ orbiting=false; cancelAnimationFrame(raf); orbitBtn.textContent='\u{1F441} Onizleme'; }
+  if(orbiting){ orbiting=false; cancelAnimationFrame(raf); window._ovT=null; orbitBtn.textContent='👁 Önizleme'; }
   tourStart = Date.now();
   startBearing = map.getBearing();
   initialZoom = map.getZoom();
@@ -1170,6 +1269,7 @@ async function renderOffline(restore){
     if(cancelled) break;
     const t = i / FPS;
     const tp = applyCameraAt(t);
+    updateDash(t);
     traceLastUpd = 0; roadLastUpd = 0;
     updateTrace(tp);
     updateRoads(tp);
@@ -1181,6 +1281,7 @@ async function renderOffline(restore){
       const sc=Math.max(W/w, H/h), dw=w*sc, dh=h*sc;
       rctx.fillStyle='#0b1a1f'; rctx.fillRect(0,0,W,H);
       rctx.drawImage(mapCanvas, (W-dw)/2, (H-dh)/2, dw, dh);
+      window._ovT = t;
       drawOverlay(rctx,W,H);
     }catch(e){}
 
@@ -1234,7 +1335,7 @@ recordBtn.onclick=()=>{
   // haritayı seçilen orana göre geçici olarak yeniden boyutlandır
   const saved = {left:mapEl.style.left,top:mapEl.style.top,right:mapEl.style.right,bottom:mapEl.style.bottom,width:mapEl.style.width,height:mapEl.style.height};
   const restore = ()=>{
-    recordingActive = false;
+    recordingActive = false; window._ovT = null;
     try{ var _lfx2=document.getElementById('liveFx'); if(_lfx2) _lfx2.style.display=''; }catch(e){}
     mapEl.style.left=saved.left; mapEl.style.top=saved.top;
     mapEl.style.right=saved.right; mapEl.style.bottom=saved.bottom;
@@ -1282,11 +1383,21 @@ recordBtn.onclick=()=>{
 function startRecording(restore){
   const mapCanvas = map.getCanvas();
 
-  // Sabit çıktı çözünürlüğü — ekrandan bağımsız, her cihazda aynı kalite
-  const RES_MAP = {'16:9':[1280,720], '9:16':[720,1280], '1:1':[900,900]};
-  const [W,H] = RES_MAP[ratioSel.value] || [1280,720];
+  // Kaynak canvas yeterliyse 1080p; değilse 720p. Kaynakta olmayan detay üretilmez.
+  const ratio = ratioSel.value || '16:9';
+  const RES_MAP_1080 = {'16:9':[1920,1080], '9:16':[1080,1920], '1:1':[1080,1080]};
+  const RES_MAP_720 = {'16:9':[1280,720], '9:16':[720,1280], '1:1':[900,900]};
+  const [tw,th] = RES_MAP_1080[ratio] || RES_MAP_1080['16:9'];
+  const ar = tw/th;
+  const sw = Math.min(mapCanvas.width, mapCanvas.height*ar);
+  const sh = Math.min(mapCanvas.height, mapCanvas.width/ar);
+  // Gerçek zamanlı kayıtta kare atlanabildiği için 1080p yalnızca güçlü cihazlarda açılır
+  const can1080 = PERF.level === 'high' && sw >= tw && sh >= th;
+  const [W,H] = can1080 ? RES_MAP_1080[ratio] : (RES_MAP_720[ratio] || RES_MAP_720['16:9']);
+  const outputBitrate = can1080 ? 12000000 : 8000000;
   const rc = document.createElement('canvas'); rc.width=W; rc.height=H;
-  const rctx = rc.getContext('2d');
+  const rctx = rc.getContext('2d', { alpha:false });
+  console.info('Parsel Tur klasik kayıt çıktısı:', {width:W,height:H,bitrate:outputBitrate});
 
   let compositing=true;
   let blackChecked=false;
@@ -1306,6 +1417,7 @@ function startRecording(restore){
         const s=Math.max(W/w, H/h), dw=w*s, dh=h*s;
         rctx.fillStyle='#0b1a1f'; rctx.fillRect(0,0,W,H);
         rctx.drawImage(mapCanvas, (W-dw)/2, (H-dh)/2, dw, dh);
+        window._ovT = (Date.now() - tourStart)/1000;
         drawOverlay(rctx,W,H);
         fpsFrames++;
       }
@@ -1366,7 +1478,7 @@ function startRecording(restore){
   const ext = mime.indexOf('mp4')>-1 ? 'mp4' : 'webm';
   const outType = ext==='mp4' ? 'video/mp4' : 'video/webm';
 
-  try{ mediaRec = new MediaRecorder(stream, mime ? {mimeType:mime,videoBitsPerSecond:8000000} : {videoBitsPerSecond:8000000}); }
+  try{ mediaRec = new MediaRecorder(stream, mime ? {mimeType:mime,videoBitsPerSecond:outputBitrate} : {videoBitsPerSecond:outputBitrate}); }
   catch(e){ fail('Kayıt başlatılamadı. Ekran kaydını kullan.'); return; }
 
   recChunks=[];
@@ -1511,7 +1623,7 @@ helpBtn.onclick=()=>window.open('nasil-yapilir.html','_blank');
 /* ---------- Pazarlama kartı ---------- */
 function updateCard(){ cardAda.textContent=adaText.value||'—'; if(typeof syncMapInfo==='function') syncMapInfo(); }
 adaText.oninput=updateCard;
-cardToggle.onchange=()=>card.classList.toggle('hide',!cardToggle.checked);
+card.classList.add('hide');
 
 /* ---------- İletişim penceresi ---------- */
 cta.onclick   = ()=> modal.classList.add('open');
@@ -1535,7 +1647,7 @@ toggle.onclick=()=>panel.classList.toggle('closed');
   <b>3 adımda video:</b><br>
   1️⃣ TKGM <b>Parsel Sorgu</b>'dan parselini bul, <b>GeoJSON</b> indir<br>
   2️⃣ <b>"GeoJSON Dosyası Seç"</b> ile yükle (adın videoya işlenir)<br>
-  3️⃣ <b>"🎬 Video Kaydet"</b> — MP4 otomatik iner<br>
+  3️⃣ <b>"🎬 Drone Videosunu Oluştur"</b> — MP4 otomatik iner<br>
   <button class="ok" id="tipOk">Anladım, başlayalım</button>
 </div>
 
@@ -1938,6 +2050,445 @@ function drawPois(ctx,w,h,project,occ){
   });
 }
 
+/* ================== PARSEL BİLGİLERİ (otomatik) ==================
+   Danışman hiçbir şey girmez: kenarlar dosyadan, rakım/eğim açık yükseklik
+   verisinden (AWS Terrain Tiles), mesafeler OpenStreetMap'ten hesaplanır. */
+window.parcelInfo = { sides:[], perim:0, longest:0, count:0, dem:null, dists:null, demState:'idle', osmState:'idle' };
+let _infoFC = null, _infoToken = 0, infoPreviewUntil = 0;
+
+function _fmtM(m){
+  if(m < 10) return m.toLocaleString('tr-TR',{maximumFractionDigits:1}) + ' m';
+  return Math.round(m).toLocaleString('tr-TR') + ' m';
+}
+function _fmtKm(km){
+  if(km < 1) return (Math.max(10, Math.round(km*100)*10)).toLocaleString('tr-TR') + ' m';
+  return km.toLocaleString('tr-TR',{maximumFractionDigits: km<10 ? 1 : 0}) + ' km';
+}
+function _outerRings(f){
+  const g = f && f.geometry; if(!g) return [];
+  if(g.type==='Polygon') return [g.coordinates[0]];
+  if(g.type==='MultiPolygon') return g.coordinates.map(p=>p[0]).filter(Boolean);
+  return [];
+}
+
+// Kenarlar: aynı doğrultudaki küçük parçalar tek kenar sayılır (TKGM sınırları çok noktalıdır)
+function computeSides(fc){
+  const sides = []; let perim = 0, count = 0;
+  (fc.features||[]).forEach(f=>{
+    _outerRings(f).forEach(ring=>{
+      if(!ring || ring.length < 4) return;
+      count++;
+      const segs = [];
+      for(let i=0;i<ring.length-1;i++){
+        const a = ring[i], b = ring[i+1];
+        const len = turf.distance(turf.point(a), turf.point(b), {units:'kilometers'})*1000;
+        if(len < 0.05) continue;
+        segs.push({a, b, len, brg: turf.bearing(turf.point(a), turf.point(b))});
+        perim += len;
+      }
+      if(!segs.length) return;
+      const dAng = (x,y)=>{ let d = Math.abs(x-y)%360; return d>180 ? 360-d : d; };
+      const merged = [];
+      segs.forEach(s=>{
+        const last = merged[merged.length-1];
+        if(last && dAng(last.brg, s.brg) < 10){ last.b = s.b; last.len += s.len; }
+        else merged.push({a:s.a, b:s.b, len:s.len, brg:s.brg});
+      });
+      // halkanın başı ve sonu aynı doğrultudaysa birleştir
+      if(merged.length > 2){
+        const f0 = merged[0], fl = merged[merged.length-1];
+        if(dAng(f0.brg, fl.brg) < 10){ fl.b = f0.b; fl.len += f0.len; merged.shift(); }
+      }
+      merged.forEach(s=>sides.push(s));
+    });
+  });
+  const longest = sides.reduce((m,s)=>Math.max(m,s.len), 0);
+  return {sides, perim, longest, count};
+}
+
+/* ---- Rakım ve eğim ---- */
+const DEM_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
+function _loadTile(z,x,y){
+  return new Promise((res,rej)=>{
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    const t = setTimeout(()=>rej(new Error('zaman aşımı')), 15000);
+    img.onload = ()=>{
+      clearTimeout(t);
+      try{
+        const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+        const cx = c.getContext('2d', {willReadFrequently:true});
+        cx.drawImage(img, 0, 0);
+        res(cx.getImageData(0,0,256,256).data);
+      }catch(e){ rej(e); }
+    };
+    img.onerror = ()=>{ clearTimeout(t); rej(new Error('yükseklik verisi alınamadı')); };
+    img.src = DEM_URL.replace('{z}',z).replace('{x}',x).replace('{y}',y);
+  });
+}
+function _gx(lng,z){ return (lng+180)/360*256*Math.pow(2,z); }
+function _gy(lat,z){ const r=lat*Math.PI/180; return (1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*256*Math.pow(2,z); }
+
+async function sampleDEM(fc){
+  const bb = turf.bbox(fc);
+  let z = 15, tx0, tx1, ty0, ty1;
+  for(; z>=10; z--){
+    tx0 = Math.floor(_gx(bb[0],z)/256); tx1 = Math.floor(_gx(bb[2],z)/256);
+    ty0 = Math.floor(_gy(bb[3],z)/256); ty1 = Math.floor(_gy(bb[1],z)/256);
+    if((tx1-tx0+1)*(ty1-ty0+1) <= 6) break;
+  }
+  const tiles = {};
+  const jobs = [];
+  for(let x=tx0;x<=tx1;x++) for(let y=ty0;y<=ty1;y++){
+    jobs.push(_loadTile(z,x,y).then(d=>{ tiles[x+'/'+y] = d; }));
+  }
+  await Promise.all(jobs);
+  const px = (data,i,j)=>{ const k=(j*256+i)*4; return (data[k]*256 + data[k+1] + data[k+2]/256) - 32768; };
+  const elevAt = (lng,lat)=>{
+    const X = _gx(lng,z), Y = _gy(lat,z);
+    const tx = Math.floor(X/256), ty = Math.floor(Y/256);
+    const d = tiles[tx+'/'+ty]; if(!d) return NaN;
+    let fx = X - tx*256 - 0.5, fy = Y - ty*256 - 0.5;
+    fx = Math.max(0, Math.min(254.999, fx)); fy = Math.max(0, Math.min(254.999, fy));
+    const i = Math.floor(fx), j = Math.floor(fy), u = fx-i, v = fy-j;
+    return px(d,i,j)*(1-u)*(1-v) + px(d,i+1,j)*u*(1-v) + px(d,i,j+1)*(1-u)*v + px(d,i+1,j+1)*u*v;
+  };
+  // parselin içinden düzenli örnek noktaları
+  const N = 16, pts = [];
+  const polys = (fc.features||[]).filter(f=>f.geometry && /Polygon/.test(f.geometry.type));
+  for(let a=0;a<N;a++) for(let b=0;b<N;b++){
+    const lng = bb[0] + (bb[2]-bb[0])*(a+0.5)/N, lat = bb[1] + (bb[3]-bb[1])*(b+0.5)/N;
+    const p = turf.point([lng,lat]);
+    if(polys.some(f=>{ try{ return turf.booleanPointInPolygon(p,f); }catch(e){ return false; } })) pts.push([lng,lat]);
+  }
+  if(pts.length < 3){
+    (fc.features||[]).forEach(f=>_outerRings(f).forEach(r=>r.forEach(c=>pts.push(c))));
+  }
+  const lat0 = (bb[1]+bb[3])/2, lng0 = (bb[0]+bb[2])/2;
+  const kx = 111320*Math.cos(lat0*Math.PI/180), ky = 110540;
+  const S = [];
+  pts.forEach(c=>{ const e = elevAt(c[0],c[1]); if(isFinite(e)) S.push([(c[0]-lng0)*kx, (c[1]-lat0)*ky, e]); });
+  if(!S.length) throw new Error('yükseklik okunamadı');
+  const zs = S.map(s=>s[2]).sort((a,b)=>a-b);
+  const med = zs[Math.floor(zs.length/2)];
+  let slopePct = 0, aspect = null;
+  if(S.length >= 3){
+    // z = a·x + b·y + c düzlemi (en küçük kareler)
+    let sxx=0,sxy=0,syy=0,sx=0,sy=0,n=S.length,sxz=0,syz=0,sz=0;
+    S.forEach(([x,y,zz])=>{ sxx+=x*x; sxy+=x*y; syy+=y*y; sx+=x; sy+=y; sxz+=x*zz; syz+=y*zz; sz+=zz; });
+    const M = [[sxx,sxy,sx],[sxy,syy,sy],[sx,sy,n]], R = [sxz,syz,sz];
+    const det = m=>m[0][0]*(m[1][1]*m[2][2]-m[1][2]*m[2][1]) - m[0][1]*(m[1][0]*m[2][2]-m[1][2]*m[2][0]) + m[0][2]*(m[1][0]*m[2][1]-m[1][1]*m[2][0]);
+    const D = det(M);
+    if(Math.abs(D) > 1e-9){
+      const col = (k)=>M.map((row,i)=>row.map((v,j)=>j===k?R[i]:v));
+      const A = det(col(0))/D, B = det(col(1))/D;
+      slopePct = Math.sqrt(A*A+B*B)*100;
+      // yamacın baktığı yön = aşağı eğim yönü
+      aspect = (Math.atan2(-A, -B)*180/Math.PI + 360) % 360;
+    }
+  }
+  return { elev: Math.round(med), min: Math.round(zs[0]), max: Math.round(zs[zs.length-1]), slopePct, aspect };
+}
+function slopeText(d){
+  const p = d.slopePct;
+  let t = p < 2 ? 'Düz' : p < 6 ? 'Hafif eğimli' : p < 12 ? 'Orta eğimli' : p < 25 ? 'Eğimli' : 'Dik eğimli';
+  if(p >= 2) t += ' (%' + Math.round(p) + ')';
+  if(p >= 4 && d.aspect !== null){
+    const dirs = ['Kuzey','Kuzeydoğu','Doğu','Güneydoğu','Güney','Güneybatı','Batı','Kuzeybatı'];
+    t += ' · ' + dirs[Math.round(d.aspect/45) % 8] + ' yamaç';
+  }
+  return t;
+}
+
+/* ---- Çevredeki yerler (OpenStreetMap) ---- */
+async function overpassJSON(q){
+  const endpoints = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass.private.coffee/api/interpreter',
+    'https://maps.mail.ru/osm/tools/overpass/api/interpreter'
+  ];
+  let lastErr = null;
+  for(const url of endpoints){
+    for(const how of ['POST','GET']){
+      const ctrl = new AbortController();
+      const t = setTimeout(()=>ctrl.abort(), 25000);
+      try{
+        const res = how==='POST'
+          ? await fetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'},signal:ctrl.signal})
+          : await fetch(url+'?data='+encodeURIComponent(q),{signal:ctrl.signal});
+        clearTimeout(t);
+        if(!res.ok) throw new Error('HTTP '+res.status);
+        const j = await res.json();
+        if(j) return j;
+      }catch(e){ clearTimeout(t); lastErr = e; }
+    }
+  }
+  throw lastErr || new Error('bağlantı yok');
+}
+const INFO_CATS = [
+  {k:'school',   icon:'🏫', label:'Okul',              sel:'nwr["amenity"="school"]', r:5000},
+  {k:'hospital', icon:'🏥', label:'Hastane',           sel:'nwr["amenity"="hospital"]', r:25000},
+  {k:'market',   icon:'🛒', label:'Market',            sel:'nwr["shop"="supermarket"]', r:5000},
+  {k:'mosque',   icon:'🕌', label:'Cami',              sel:'nwr["amenity"="place_of_worship"]["religion"="muslim"]', r:3000},
+  {k:'motorway', icon:'🛣️', label:'Otoyol bağlantısı', sel:'node["highway"="motorway_junction"]', r:30000},
+  {k:'town',     icon:'🏙️', label:'Merkez',            sel:'node["place"~"^(town|city)$"]', r:30000}
+];
+async function fetchDistances(fc){
+  const c = turf.centerOfMass(fc).geometry.coordinates, lat = c[1].toFixed(6), lng = c[0].toFixed(6);
+  const ar = r=>`(around:${r},${lat},${lng})`;
+  const q = `[out:json][timeout:25];(` + INFO_CATS.map(k=>k.sel+ar(k.r)+';').join('') + `);out center tags;`
+          + `way["natural"="coastline"]${ar(15000)};out geom;`
+          + `(way["natural"="water"]["water"~"^(lake|reservoir)$"]${ar(10000)};relation["natural"="water"]["water"~"^(lake|reservoir)$"]${ar(10000)};);out geom;`;
+  const data = await overpassJSON(q);
+  const here = turf.point(c);
+  const best = {};
+  const take = (key, km, name)=>{ if(!isFinite(km)) return; if(!best[key] || km < best[key].km) best[key] = {km, name:name||''}; };
+  const dPt = (lon,la)=>turf.distance(here, turf.point([lon,la]), {units:'kilometers'});
+  const dGeom = (arr)=>{ let m = Infinity; (arr||[]).forEach(p=>{ if(p) m = Math.min(m, dPt(p.lon,p.lat)); }); return m; };
+  (data.elements||[]).forEach(el=>{
+    const t = el.tags || {};
+    if(t.natural==='coastline'){ take('sea', dGeom(el.geometry)); return; }
+    if(t.natural==='water'){
+      let m = dGeom(el.geometry);
+      (el.members||[]).forEach(mb=>{ m = Math.min(m, dGeom(mb.geometry)); });
+      take('lake', m, t.name); return;
+    }
+    const lon = el.lon!=null ? el.lon : (el.center && el.center.lon);
+    const la  = el.lat!=null ? el.lat : (el.center && el.center.lat);
+    if(lon==null || la==null) return;
+    const km = dPt(lon, la);
+    if(t.amenity==='school') take('school', km);
+    else if(t.amenity==='hospital') take('hospital', km);
+    else if(t.shop==='supermarket') take('market', km);
+    else if(t.amenity==='place_of_worship') take('mosque', km);
+    else if(t.highway==='motorway_junction') take('motorway', km);
+    else if(t.place==='town' || t.place==='city') take('town', km, t['name:tr'] || t.name);
+  });
+  const out = [];
+  INFO_CATS.forEach(k=>{
+    const b = best[k.k]; if(!b) return;
+    const label = k.k==='town' ? ((b.name ? b.name+' ' : 'Yerleşim ') + 'merkezi') : k.label;
+    out.push({icon:k.icon, label, km:b.km});
+  });
+  if(best.sea)  out.push({icon:'🌊', label:'Deniz', km:best.sea.km});
+  if(best.lake) out.push({icon:'💧', label: best.lake.name ? best.lake.name : 'Göl / baraj', km:best.lake.km});
+  return out;
+}
+
+/* ---- Hesaplama akışı ---- */
+function initParcelInfo(fc){
+  _infoFC = fc; _infoToken++;
+  const s = computeSides(fc);
+  Object.assign(window.parcelInfo, s, {dem:null, dists:null, demState:'idle', osmState:'idle'});
+  if(cardToggle.checked) startInfoFetch();
+  renderInfoList();
+}
+function startInfoFetch(force){
+  if(!_infoFC) { renderInfoList(); return; }
+  const pi = window.parcelInfo, tok = _infoToken;
+  if(force || pi.demState==='idle' || pi.demState==='err'){
+    pi.demState = 'loading';
+    sampleDEM(_infoFC).then(d=>{ if(tok!==_infoToken) return; pi.dem = d; pi.demState='ok'; renderInfoList(); drawLiveFx(); })
+      .catch(()=>{ if(tok!==_infoToken) return; pi.demState='err'; renderInfoList(); });
+  }
+  if(force || pi.osmState==='idle' || pi.osmState==='err'){
+    pi.osmState = 'loading';
+    fetchDistances(_infoFC).then(d=>{ if(tok!==_infoToken) return; pi.dists = d; pi.osmState='ok'; renderInfoList(); drawLiveFx(); })
+      .catch(()=>{ if(tok!==_infoToken) return; pi.osmState='err'; renderInfoList(); });
+  }
+  renderInfoList();
+}
+function infoAreaM2(){
+  const L = window.parcelLabels || [];
+  return L.reduce((s,p)=>s + ((p.m2manual>0) ? p.m2manual : p.m2), 0);
+}
+// Karttaki satırlar (seçili ve hesaplanmış olanlar)
+function infoRows(){
+  const pi = window.parcelInfo, rows = [];
+  const on = id=>{ const el = document.getElementById(id); return !el || el.checked; };
+  const m2 = infoAreaM2();
+  if(on('infAlan') && m2 > 0){
+    let v = m2.toLocaleString('tr-TR',{maximumFractionDigits:2}) + ' m²';
+    if(m2 >= 10000) v += ' (≈ ' + (m2/1000).toLocaleString('tr-TR',{maximumFractionDigits:1}) + ' dönüm)';
+    rows.push({icon:'📐', label:'Alan', value:v});
+  }
+  if(on('infKenar') && pi.count === 1 && pi.perim > 0){
+    rows.push({icon:'📏', label:'Çevre', value:_fmtM(pi.perim)});
+    rows.push({icon:'↔️', label:'En uzun kenar', value:_fmtM(pi.longest)});
+  }
+  if(on('infRakim') && pi.dem){
+    let v = pi.dem.elev.toLocaleString('tr-TR') + ' m';
+    if(pi.dem.max - pi.dem.min >= 2) v += ' (kot farkı ≈ ' + (pi.dem.max - pi.dem.min) + ' m)';
+    rows.push({icon:'⛰️', label:'Rakım', value:v});
+  }
+  if(on('infEgim') && pi.dem) rows.push({icon:'📉', label:'Eğim', value:slopeText(pi.dem)});
+  const dist = (on('infMesafe') && pi.dists) ? pi.dists.map(d=>({icon:d.icon, label:d.label, value:_fmtKm(d.km)})) : [];
+  return {rows, dist};
+}
+function renderInfoList(){
+  const box = document.getElementById('infoList'); if(!box) return;
+  const pi = window.parcelInfo;
+  if(!_infoFC){ box.innerHTML = '<p class="hint" style="margin:6px 0 0">Önce parsel dosyasını yükle; bilgiler otomatik hesaplanır.</p>'; return; }
+  const st = s => s==='loading' ? 'hesaplanıyor…' : s==='err' ? 'alınamadı' : '—';
+  const m2 = infoAreaM2();
+  const items = [
+    ['infAlan',   'Alan', m2>0 ? m2.toLocaleString('tr-TR',{maximumFractionDigits:2})+' m²' : '—'],
+    ['infKenar',  'Çevre ve en uzun kenar', pi.count===1 ? (_fmtM(pi.perim)+' · '+_fmtM(pi.longest)) : (pi.count>1 ? 'birden fazla parselde gösterilmez' : '—')],
+    ['infRakim',  'Rakım', pi.dem ? (pi.dem.elev.toLocaleString('tr-TR')+' m') : st(pi.demState)],
+    ['infEgim',   'Eğim', pi.dem ? slopeText(pi.dem) : st(pi.demState)],
+    ['infMesafe', 'Çevredeki yerler (kuş uçuşu)', pi.dists ? (pi.dists.length ? pi.dists.map(d=>d.icon+' '+d.label+' '+_fmtKm(d.km)).join(' · ') : 'yakında kayıtlı yer bulunamadı') : st(pi.osmState)]
+  ];
+  const prev = {};
+  box.querySelectorAll('input[type=checkbox]').forEach(c=>{ prev[c.id] = c.checked; });
+  box.innerHTML = '';
+  items.forEach(([id,label,val])=>{
+    const row = document.createElement('label'); row.className = 'info-row';
+    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = id;
+    cb.checked = (id in prev) ? prev[id] : true;
+    cb.onchange = ()=>drawLiveFx();
+    const tx = document.createElement('span');
+    tx.innerHTML = '<b></b><small></small>';
+    tx.querySelector('b').textContent = label;
+    tx.querySelector('small').textContent = val;
+    row.appendChild(cb); row.appendChild(tx); box.appendChild(row);
+  });
+  if(pi.demState==='err' || pi.osmState==='err'){
+    const p = document.createElement('p'); p.className='hint'; p.style.margin='6px 0 0';
+    p.textContent = 'Bazı bilgiler alınamadı (bağlantı yavaş olabilir). “Bilgileri yeniden hesapla”ya bas.';
+    box.appendChild(p);
+  }
+}
+
+/* ---- Video kartı ---- */
+function infoCardAlpha(){
+  const T = window._ovT;
+  if(T == null) return (Date.now() < infoPreviewUntil) ? 1 : 0;
+  const total = parseInt(document.getElementById('recLen').value,10) || 57;
+  const show = total <= 15 ? 5 : 6;
+  const t0 = total - show;
+  if(T < t0) return 0;
+  return Math.min(1, (T - t0)/0.6);
+}
+function drawInfoCard(ctx,w,h,bannerRect){
+  if(typeof cardToggle==='undefined' || !cardToggle.checked || !_infoFC) return;
+  const alpha = infoCardAlpha(); if(alpha <= 0) return;
+  const {rows, dist} = infoRows();
+  if(!rows.length && !dist.length) return;
+  const title = (adaText.value||'').trim() || 'Parsel Bilgileri';
+  const u = Math.min(w,h);
+  // kullanılabilir alan: üst şerit ve alttaki iletişim kartı hariç
+  let top = Math.round(u*0.045);
+  if(bannerRect) top = Math.max(top, Math.round(bannerRect.y + bannerRect.h + u*0.025));
+  const bottomRes = (ovToggle.checked ? Math.round(h*0.17) : Math.round(u*0.045));
+  const availH = h - top - bottomRes, availW = w - u*0.09;
+  const layout = (fs)=>{
+    const fsT = fs*1.2, fsS = fs*0.72, rh = fs*1.62, pad = fs*1.0, gap = fs*1.4;
+    const all = rows.concat(dist);
+    ctx.font = `600 ${fs}px "Segoe UI",system-ui,sans-serif`;
+    let lw = 0; all.forEach(r=>{ lw = Math.max(lw, ctx.measureText(r.icon+'  '+r.label).width); });
+    ctx.font = `700 ${fs}px "Segoe UI",system-ui,sans-serif`;
+    let vw = 0; all.forEach(r=>{ vw = Math.max(vw, ctx.measureText(r.value).width); });
+    ctx.font = `800 ${fsT}px "Segoe UI",system-ui,sans-serif`;
+    const tw = ctx.measureText(title).width;
+    const cw = Math.max(lw + gap + vw, tw) + pad*2;
+    let chh = pad + fsT*1.5 + rows.length*rh;
+    if(dist.length) chh += fsS*2.0 + dist.length*rh;
+    chh += fsS*2.2 + pad*0.6;
+    return {fs, fsT, fsS, rh, pad, cw, chh};
+  };
+  let L = layout(Math.max(Math.round(u*0.036), 11));
+  const k = Math.min(1, availH / L.chh, availW / L.cw);
+  if(k < 1) L = layout(Math.max(Math.floor(L.fs*k), 9));
+  const landscape = w > h*1.15;
+  const x = landscape ? Math.round(u*0.045) : Math.round((w - L.cw)/2);
+  const y = Math.round(top + Math.max(0, (availH - L.chh)/2));
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  roundRect(ctx, x, y, L.cw, L.chh, Math.round(L.fs*0.7));
+  ctx.fillStyle = 'rgba(255,255,255,0.97)'; ctx.fill();
+  ctx.fillStyle = '#0d9488'; ctx.fillRect(x, y + Math.round(L.fs*0.7), Math.max(4, L.fs*0.22), L.chh - Math.round(L.fs*1.4));
+  let cy = y + L.pad;
+  ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+  ctx.font = `800 ${L.fsT}px "Segoe UI",system-ui,sans-serif`; ctx.fillStyle = '#0f766e';
+  ctx.fillText(title, x + L.pad, cy, L.cw - L.pad*2);
+  cy += L.fsT*1.5;
+  const drawRow = r=>{
+    ctx.font = `600 ${L.fs}px "Segoe UI",system-ui,sans-serif`; ctx.fillStyle = '#475569'; ctx.textAlign = 'left';
+    ctx.fillText(r.icon + '  ' + r.label, x + L.pad, cy + (L.rh-L.fs)/2);
+    ctx.font = `700 ${L.fs}px "Segoe UI",system-ui,sans-serif`; ctx.fillStyle = '#0f172a'; ctx.textAlign = 'right';
+    ctx.fillText(r.value, x + L.cw - L.pad, cy + (L.rh-L.fs)/2);
+    cy += L.rh;
+  };
+  rows.forEach(drawRow);
+  if(dist.length){
+    cy += L.fsS*0.5;
+    ctx.font = `700 ${L.fsS}px "Segoe UI",system-ui,sans-serif`; ctx.fillStyle = '#0d9488'; ctx.textAlign = 'left';
+    ctx.fillText('ÇEVREDEKİ YERLER · KUŞ UÇUŞU', x + L.pad, cy);
+    cy += L.fsS*1.5;
+    dist.forEach(drawRow);
+  }
+  cy += L.fsS*0.8;
+  ctx.font = `500 ${L.fsS}px "Segoe UI",system-ui,sans-serif`; ctx.fillStyle = '#94a3b8'; ctx.textAlign = 'left';
+  ctx.fillText('Yaklaşık değerlerdir · © OpenStreetMap katkıcıları', x + L.pad, cy, L.cw - L.pad*2);
+  ctx.restore();
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+}
+
+// Parsel üstü yazılar + bilgi kartı: kart belirirken yazılar söner, arka plan hafif kararır
+let _lblCanvas = null;
+function drawLabelsWithCard(ctx,w,h,proj,occ,br){
+  let ca = 0;
+  try{ ca = (cardToggle.checked && _infoFC) ? infoCardAlpha() : 0; }catch(e){ ca = 0; }
+  const drawLabels = (c)=>{
+    try{ if(proj) drawAreaLabels(c,w,h,proj,occ); }catch(e){}
+    try{ if(proj) drawEdgeLabels(c,w,h,proj,occ); }catch(e){}
+    try{ if(proj) drawPois(c,w,h,proj,occ); }catch(e){}
+  };
+  if(ca <= 0){ drawLabels(ctx); return; }
+  if(ca < 1){
+    if(!_lblCanvas) _lblCanvas = document.createElement('canvas');
+    if(_lblCanvas.width !== w || _lblCanvas.height !== h){ _lblCanvas.width = w; _lblCanvas.height = h; }
+    const lc = _lblCanvas.getContext('2d');
+    lc.clearRect(0,0,w,h);
+    drawLabels(lc);
+    ctx.save(); ctx.globalAlpha = 1 - ca; ctx.drawImage(_lblCanvas, 0, 0); ctx.restore();
+  }
+  ctx.save(); ctx.globalAlpha = 0.28*ca; ctx.fillStyle = '#0b1a1f'; ctx.fillRect(0,0,w,h); ctx.restore();
+  try{ drawInfoCard(ctx,w,h,br); }catch(e){}
+}
+
+/* ---- Kenar uzunlukları (parselin üzerinde) ---- */
+function drawEdgeLabels(ctx,w,h,project,occ){
+  if(typeof edgeChk==='undefined' || !edgeChk.checked) return;
+  const pi = window.parcelInfo; if(!pi || !pi.sides || !pi.sides.length) return;
+  occ = occ || [];
+  const fs = Math.max(Math.round(Math.min(w,h)*0.026), 10);
+  ctx.font = `700 ${fs}px "Segoe UI",system-ui,sans-serif`;
+  const minLen = pi.perim * 0.03;
+  const list = pi.sides.filter(s=>s.len >= minLen).sort((a,b)=>b.len-a.len).slice(0,14);
+  list.forEach(s=>{
+    let A, B;
+    try{ A = project(s.a); B = project(s.b); }catch(e){ return; }
+    if(!A || !B || !isFinite(A[0]+A[1]+B[0]+B[1])) return;
+    const mx = (A[0]+B[0])/2, my = (A[1]+B[1])/2;
+    if(mx < 0 || mx > w || my < 0 || my > h) return;
+    const t = _fmtM(s.len);
+    const tw = ctx.measureText(t).width, bw = tw + fs*0.9, bh = fs*1.45;
+    const L = Math.hypot(B[0]-A[0], B[1]-A[1]);
+    if(L < bw*1.25) return;                        // kenar ekranda yazıdan kısaysa yazma
+    const r = {x: mx-bw/2, y: my-bh/2, w: bw, h: bh};
+    if(r.x < 4 || r.y < 4 || r.x+bw > w-4 || r.y+bh > h-4) return;
+    if(!_isFree(r, occ)) return;
+    roundRect(ctx, r.x, r.y, bw, bh, Math.round(bh/2));
+    ctx.fillStyle = 'rgba(255,255,255,0.90)'; ctx.fill();
+    ctx.fillStyle = '#0f172a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(t, mx, my + 0.5);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    occ.push(r);
+  });
+}
+
 /* ---- canlı önizleme (haritanın üstünde) ---- */
 const liveFx = document.getElementById('liveFx');
 const liveCtx = liveFx ? liveFx.getContext('2d') : null;
@@ -1954,9 +2505,9 @@ function drawLiveFx(){
   liveCtx.clearRect(0,0,W,H);
   const proj = ll=>{ const p = map.project(ll); return [p.x*dpr, p.y*dpr]; };
   const occ = [];
-  try{ drawBanner(liveCtx,W,H,occ); }catch(e){}
-  try{ drawAreaLabels(liveCtx,W,H,proj,occ); }catch(e){}
-  try{ drawPois(liveCtx,W,H,proj,occ); }catch(e){}
+  let br=null;
+  try{ br = drawBanner(liveCtx,W,H,occ); }catch(e){}
+  drawLabelsWithCard(liveCtx,W,H,proj,occ,br);
 }
 map.on('render', ()=>{ const n=Date.now(); if(n-liveLast < 90) return; liveLast=n; drawLiveFx(); });
 
@@ -1991,7 +2542,7 @@ function renderAreaInputs(){
     inp.placeholder = 'Hesaplanan: ' + p.m2.toLocaleString('tr-TR');
     inp.value = p.m2manual ? p.m2manual.toLocaleString('tr-TR') : '';
     inp.className = 'areaManual';
-    inp.addEventListener('input', ()=>{ p.m2manual = _parseM2(inp.value); drawLiveFx(); });
+    inp.addEventListener('input', ()=>{ p.m2manual = _parseM2(inp.value); drawLiveFx(); try{ renderInfoList(); }catch(e){} });
     box.appendChild(lab); box.appendChild(inp);
   });
 }
@@ -2182,9 +2733,17 @@ hlColor.oninput=()=>{
   ovToggle.addEventListener('change', syncContact); syncContact();
 
   // Parsel bilgi kartı aç/kapa
-  function syncCardFields(){ cardFields.style.display = cardToggle.checked ? 'block':'none'; }
+  function syncCardFields(){
+    cardFields.style.display = cardToggle.checked ? 'block':'none';
+    if(cardToggle.checked){ startInfoFetch(); infoPreviewUntil = Date.now()+4000; setTimeout(drawLiveFx, 4100); }
+    renderInfoList(); drawLiveFx();
+  }
   cardToggle.addEventListener('change', syncCardFields); syncCardFields();
-  card.classList.toggle('hide', !cardToggle.checked);   // başlangıçta kapalı
+  card.classList.add('hide');   // eski ekran kartı kullanılmıyor; bilgiler videodaki kartta
+  edgeChk.addEventListener('change', ()=>drawLiveFx());
+  infoPreview.onclick = ()=>{ infoPreviewUntil = Date.now()+5000; drawLiveFx(); setTimeout(drawLiveFx, 5100); };
+  infoRetry.onclick = ()=>startInfoFetch(true);
+  adaText.addEventListener('input', ()=>drawLiveFx());
 
   // Harita üstü özet kartı
   window.syncMapInfo = function(){

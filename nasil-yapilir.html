@@ -32,7 +32,18 @@
   html{scroll-behavior:smooth;color-scheme:only light;background:#f3f6f9}
   body{font-family:"Plus Jakarta Sans",system-ui,sans-serif;background:var(--bg);color:var(--body);line-height:1.65;-webkit-font-smoothing:antialiased}
   a{color:inherit;text-decoration:none}
-  .wrap{max-width:840px;margin:0 auto;padding:0 22px}
+  .wrap{max-width:900px;margin:0 auto;padding:0 22px}
+  .step{box-shadow:0 3px 14px rgba(21,34,48,.035);transition:transform .18s,border-color .18s}
+  .step:hover{border-color:#cbdedb}
+  .step .body{min-width:0;flex:1}
+  .step .body p+p{margin-top:9px}
+  .shot{height:auto;object-fit:contain;background:#f8fafc}
+  .guide-nav{display:flex;gap:9px;flex-wrap:wrap;justify-content:center;margin:0 auto 18px}
+  .guide-nav a{font-size:12px;font-weight:700;color:var(--teal-d);background:#fff;border:1px solid var(--line);border-radius:999px;padding:7px 12px}
+  .guide-nav a:hover{border-color:var(--teal);background:var(--teal-soft)}
+  .mini-note{font-size:13px!important;color:var(--body)!important;margin-top:10px!important}
+  .quality-note{background:#fff;border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:12px;padding:15px 18px;margin:16px 0 22px}
+  .quality-note b{color:var(--ink)}
 
   /* Top bar */
   header{position:sticky;top:0;z-index:20;background:rgba(243,246,249,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
@@ -95,8 +106,11 @@
   .fnote{font-size:12px;color:var(--muted);margin-top:20px;text-align:center}
 
   @media(max-width:560px){
-    .step{padding:16px}.hero{padding:44px 0 30px}
-    .top-cta{padding:8px 13px}
+    .step{padding:15px;gap:12px}.step .no{width:34px;height:34px;font-size:14px}
+    .hero{padding:44px 0 30px}.hero p{font-size:15px}
+    .sec-head{gap:9px}.sec-head h2{font-size:19px}
+    .top-cta{padding:8px 13px}.wrap{padding:0 15px}
+    .final{padding:34px 20px}.final h2{font-size:23px}
   }
   /* Koyu mod zırhı: her koşulda açık tema */
   @media (prefers-color-scheme: dark){
@@ -120,15 +134,20 @@
     <p>Drone kiralamadan, araziye gitmeden. TKGM'den parsel dosyanı indir, yükle, adını yaz — üstünde adın yazılı sinematik bir tanıtım videosu otomatik insin.</p>
     <div class="btns">
       <a class="btn btn-primary" href="index.html">🚁 Aracı Aç</a>
-      <a class="btn btn-ghost" href="https://parselsorgu.tkgm.gov.tr/" target="_blank" rel="noopener">TKGM Parsel Sorgu'ya Git</a>
+      <a class="btn btn-ghost" href="https://parselsorgu.tkgm.gov.tr/" target="_blank" rel="noopener">TKGM Parsel Sorgu'ya Git ↗</a>
     </div>
+    <nav class="guide-nav" aria-label="Rehber bölümleri">
+      <a href="#dosya-indir">1 · Dosyayı indir</a>
+      <a href="#video-olustur">2 · Videoyu oluştur</a>
+      <a href="#paylas">3 · Paylaş</a>
+    </nav>
   </div>
 </section>
 
 <main class="wrap">
 
   <!-- BÖLÜM 1 -->
-  <div class="section">
+  <div class="section" id="dosya-indir">
     <div class="sec-head">
       <span class="badge">Bölüm 1</span>
       <h2>Parselin dosyasını indir</h2>
@@ -178,7 +197,7 @@
   </div>
 
   <!-- BÖLÜM 2 -->
-  <div class="section">
+  <div class="section" id="video-olustur">
     <div class="sec-head">
       <span class="badge">Bölüm 2</span>
       <h2>3D videoyu oluştur</h2>
@@ -223,6 +242,11 @@
       • <b>Sinematik</b> — Dönerken yavaşça yükselip genişler; çevreyi ve konumu göstermek için en iyisi.<br>
       • <b>Yakın Plan</b> — Dönerken parsele yaklaşır, sonra tekrar açılır. Parselin detayını öne çıkarır.</p>
       <p>Eğim, arazi yüksekliği, harita kaynağı ve parsel renkleri gibi ince ayarlar <b>"⚙️ Gelişmiş ayarlar"</b> bölümünde; ihtiyacın yoksa hiç açman gerekmez.</p>
+      <div class="quality-note">
+        <b>Harita kaynağı seçimi</b>
+        <p class="mini-note"><b>Uydu HD</b> varsayılan seçenektir ve desteklenen bölgelerde daha yakından görüntü sunabilir. Görüntü kalitesi ve yakınlaştırma seviyesi bölgeye göre değişebilir. Sonuç istediğin gibi değilse <b>Uydu — standart</b> seçeneğini deneyebilirsin. <b>Topoğrafik</b> görünüm ise yol ve yer adlarını öne çıkarır.</p>
+        <p class="mini-note"><b>3D arazi</b> açıkken yükseklik etkisi görünür; çok yakına inildiğinde sistem performans ve görüntü kararlılığı için bu özelliği otomatik kapatabilir.</p>
+      </div>
       <p><b>✨ Lazer sınır çizimi:</b> Bu seçenek açıkken (varsayılan olarak açık), video başladığında parsel çıplak araziyle başlar; sınır bir <b>ışık huzmesi gibi kenarları dolaşarak çizilir</b> ve dolgu rengi yavaşça belirir. Çizim video bitmeden tamamlanır, böylece son saniyelerde parselin tamamlanmış hâli sunulur. Işının rengi, seçtiğin <b>çizgi rengiyle</b> aynıdır.</p>
     </div></div>
 
@@ -251,14 +275,19 @@
       <p>• <b>Yatay 16:9</b> — YouTube ve Sahibinden ilanları için.<br>
       • <b>Dikey 9:16</b> — Instagram Reels ve Story için; video baştan dikey çıkar, kırpmana gerek kalmaz.<br>
       • <b>Kare 1:1</b> — klasik Instagram gönderisi için.</p>
-      <p>Sonra <b>"🎬 Drone Videosunu Oluştur"</b>a bas. Harita seçtiğin orana göre kendini yeniden çerçeveler (kısa bir "Hazırlanıyor" anı), parsele odaklanır ve drone turu seçtiğin hareket tarzına göre otomatik başlar. Süre bitince video, kalıcı gömülü reklam kartınla birlikte <b>MP4</b> formatında bilgisayarına iner ve harita eski haline döner.</p>
+      <p>Sonra <b>"🎬 Drone Videosunu Oluştur"</b>a bas. Harita seçtiğin orana göre kendini yeniden çerçeveler (kısa bir "Hazırlanıyor" anı), parsele odaklanır ve drone turu seçtiğin hareket tarzına göre otomatik başlar. Süre bitince video, iletişim kartını etkinleştirdiysen eklediğin bilgilerle birlikte <b>MP4</b> formatında bilgisayarına iner ve harita eski haline döner.</p>
+      <div class="quality-note">
+        <b>Video çözünürlüğü otomatik ayarlanır</b>
+        <p class="mini-note">Parsel Tur, bilgisayarın performans profiline ve harita görüntüsünün kaynak boyutuna göre uygun çıktı kalitesini seçer. Koşullar yeterliyse video <b>1080p</b>, değilse daha akıcı ve kararlı kayıt için <b>720p</b> olarak hazırlanır. Bu seçim otomatik yapılır; ayrıca bir çözünürlük ayarı seçmen gerekmez.</p>
+        <p class="mini-note">Daha yüksek çözünürlük tek başına daha fazla arazi detayı anlamına gelmez. Uydu görüntüsünün o bölgedeki mevcut ayrıntısı ve internet bağlantısı da sonucu etkiler.</p>
+      </div>
       <img class="shot" src="adim-5.jpg" alt="Video kaydı"
         onerror="this.outerHTML='&lt;div class=\'shot ph\'&gt;Ekran görüntüsü · adim-5.jpg&lt;/div&gt;'">
     </div></div>
   </div>
 
   <!-- BÖLÜM 3 -->
-  <div class="section">
+  <div class="section" id="paylas">
     <div class="sec-head">
       <span class="badge">Bölüm 3</span>
       <h2>Paylaş</h2>
@@ -271,14 +300,14 @@
 
     <div class="callout">
       <h4>İPUCU</h4>
-      <p>En iyi sonuç bilgisayar + Chrome'da alınır. Çevre özelliklerini daha iyi göstermek ve sinematik etkiyi artırmak için ilanlarında <b>"Sinematik"</b> video tarzını kullanmanı öneririz.</p>
+      <p>En iyi sonuç için güncel Chrome sürümünü kullanan bir bilgisayarda çalışmanı öneririz. Çevre özelliklerini daha iyi göstermek için <b>"Sinematik"</b> video tarzını deneyebilirsin. Harita görüntüsünün yüklenmesi internet hızına ve seçilen bölgedeki veri kapsamına bağlıdır.</p>
     </div>
   </div>
 
   <!-- FINAL CTA -->
   <div class="final">
     <h2>Hadi ilk videonu oluştur</h2>
-    <p>Bir parsel, üç dakika. Arsanı satışa hazır dinamik bir drone videosuyla öne çıkar.</p>
+    <p>Parselini 3D haritada göster, tanıtım videonu hazırla ve ilanlarında kullan.</p>
     <a class="btn btn-white" href="index.html">🚁 Aracı Aç</a>
   </div>
 
