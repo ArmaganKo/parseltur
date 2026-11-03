@@ -1682,40 +1682,8 @@ async function fetchRoads(){
     const c = turf.center(map.getSource('parcel')._data).geometry.coordinates;
     const r = parseInt(roadRadius.value,10) || 1200;
     const q = `[out:json][timeout:20];way["highway"~"^(motorway|trunk|primary|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link)$"](around:${r},${c[1]},${c[0]});out geom;`;
-    const endpoints = [
-      'https://overpass-api.de/api/interpreter',
-      'https://overpass.kumi.systems/api/interpreter',
-      'https://overpass.private.coffee/api/interpreter',
-      'https://maps.mail.ru/osm/tools/overpass/api/interpreter'
-    ];
-    let data=null, lastErr=null, tried=0;
-    for(const url of endpoints){
-      tried++;
-      roadInfo.textContent='Yollar getiriliyor… ('+tried+'/'+endpoints.length+' sunucu deneniyor)';
-      // her sunucuya en fazla 15 sn şans ver, takılıp kalmasın
-      const ctrl = new AbortController();
-      const timer = setTimeout(()=>ctrl.abort(), 15000);
-      try{
-        let res = await fetch(url,{method:'POST',body:'data='+encodeURIComponent(q),
-          headers:{'Content-Type':'application/x-www-form-urlencoded'}, signal:ctrl.signal});
-        if(!res.ok) throw new Error('HTTP '+res.status);
-        data = await res.json();
-        clearTimeout(timer);
-        if(data) break;
-      }catch(err){
-        clearTimeout(timer);
-        lastErr=err;
-        // POST olmadıysa aynı sunucuda GET dene
-        try{
-          const ctrl2 = new AbortController();
-          const t2 = setTimeout(()=>ctrl2.abort(), 15000);
-          const res2 = await fetch(url+'?data='+encodeURIComponent(q), {signal:ctrl2.signal});
-          clearTimeout(t2);
-          if(res2.ok){ data = await res2.json(); if(data) break; }
-        }catch(err2){ lastErr=err2; }
-      }
-    }
-    if(!data) throw lastErr || new Error('bağlantı yok');
+    roadInfo.textContent='Yollar getiriliyor…';
+    const data = await overpassJSON(q, 20000);
 
     const feats=[];
     (data.elements||[]).forEach(el=>{
@@ -2201,30 +2169,41 @@ function slopeText(d){
 }
 
 /* ---- Çevredeki yerler (OpenStreetMap) ---- */
-async function overpassJSON(q){
+// OpenStreetMap sunucularını AYNI ANDA dene; ilk sağlıklı cevap kazanır.
+// (Sırayla denemek, sunucular yavaşken hata mesajını dakikalarca geciktiriyordu.)
+async function overpassJSON(q, maxMs){
   const endpoints = [
     'https://overpass-api.de/api/interpreter',
     'https://overpass.kumi.systems/api/interpreter',
     'https://overpass.private.coffee/api/interpreter',
     'https://maps.mail.ru/osm/tools/overpass/api/interpreter'
   ];
-  let lastErr = null;
-  for(const url of endpoints){
-    for(const how of ['POST','GET']){
-      const ctrl = new AbortController();
-      const t = setTimeout(()=>ctrl.abort(), 25000);
+  const ctrls = [];
+  const tryOne = async (url)=>{
+    const ctrl = new AbortController(); ctrls.push(ctrl);
+    const t = setTimeout(()=>ctrl.abort(), maxMs || 25000);
+    try{
+      let res;
       try{
-        const res = how==='POST'
-          ? await fetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'},signal:ctrl.signal})
-          : await fetch(url+'?data='+encodeURIComponent(q),{signal:ctrl.signal});
-        clearTimeout(t);
+        res = await fetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'},signal:ctrl.signal});
         if(!res.ok) throw new Error('HTTP '+res.status);
-        const j = await res.json();
-        if(j) return j;
-      }catch(e){ clearTimeout(t); lastErr = e; }
-    }
+      }catch(e){
+        if(ctrl.signal.aborted) throw e;
+        res = await fetch(url+'?data='+encodeURIComponent(q),{signal:ctrl.signal});
+        if(!res.ok) throw new Error('HTTP '+res.status);
+      }
+      const j = await res.json();
+      if(!j || !Array.isArray(j.elements)) throw new Error('geçersiz cevap');
+      return j;
+    } finally { clearTimeout(t); }
+  };
+  try{
+    const j = await Promise.any(endpoints.map(tryOne));
+    ctrls.forEach(c=>{ try{ c.abort(); }catch(e){} });   // geri kalan istekleri durdur
+    return j;
+  }catch(e){
+    throw new Error('OpenStreetMap sunucularına ulaşılamadı');
   }
-  throw lastErr || new Error('bağlantı yok');
 }
 const INFO_CATS = [
   {k:'school',   icon:'🏫', label:'Okul',              sel:'nwr["amenity"="school"]', r:5000},
